@@ -230,7 +230,12 @@ async function callProxy(userMessage) {
   const text = data.text || "";
   let parsed;
   try { parsed = JSON.parse(text.replace(/```json|```/g,"").trim()); }
-  catch { parsed = { message:text, hint:null, quickReplies:[], icfUpdate:null, progress:currentProgress }; }
+  catch {
+    // JSON troncato — prova a estrarre almeno il campo message
+    const msgMatch = text.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    const msg = msgMatch ? msgMatch[1].replace(/\\n/g,"\n").replace(/\\"/g,'"') : "Risposta non disponibile, riprova.";
+    parsed = { message:msg, hint:null, quickReplies:[], icfUpdate:null, progress:currentProgress };
+  }
   history.push({ role:"assistant", content:text });
   return parsed;
 }
@@ -318,6 +323,16 @@ function applyUpdate(r) {
     (u.items||[]).forEach(item=>{ const s=profile[id].items; const i=s.findIndex(x=>x.code===item.code); if(i>=0)s[i]=item; else s.push(item); });
     (u.faItems||[]).forEach(fa=>{ const s=profile[id].faItems; const i=s.findIndex(x=>x.code===fa.code); if(i>=0)s[i]=fa; else s.push(fa); });
   }
+  // Badge e auto-switch al tab appena popolato per la prima volta
+  const prevAna=Object.keys(anagrafica).length, prevB=bItems.length, prevS=sItems.length;
+  const prevAp=Object.values(profile).reduce((n,d)=>n+d.items.length,0);
+  const prevFp=fpItems.length, prevFa=Object.values(profile).reduce((n,d)=>n+d.faItems.length,0);
+  const tabCounts = {ana:prevAna,b:prevB,s:prevS,ap:prevAp,fp:prevFp,fa:prevFa};
+  const justFilled = ["ana","b","s","ap","fp","fa"].find(t => tabCounts[t]>0);
+  if(justFilled && currentTab!==justFilled && Object.keys(anagrafica).length===1 && justFilled==="ana") {
+    switchTab("ana");
+  }
+  updateTabBadges();
   renderPanel();
 }
 // Etichette anagrafica
