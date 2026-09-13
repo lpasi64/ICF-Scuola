@@ -203,27 +203,7 @@ const ICF_DOMAINS = [
     items:[{code:"d910",label:"Attività sociali"},{code:"d920",label:"Attività ricreative/sportive"},{code:"d9200",label:"Attività di gioco"}]}
 ];
 
-const SYSTEM_PROMPT = `Sei un assistente specializzato nella compilazione del Questionario ICF-Scuola rev.2026 (Versione Breve) per il Profilo di Funzionamento (D.Lgs. 66/2017 e 62/2024). Comunica sempre in italiano.
-
-DOMINI D1-D9 (Attività e Partecipazione):
-D1: d137,d138,d155,d160,d166,d170,d172,d175,d177,d179
-D2: d210,d220,d230,d240
-D3: d310,d315,d320,d330,d335,d340,d349,d350,d360
-D4: d430,d440,d450,d460,d465,d470
-D5: d510,d530,d540,d550,d570
-D6: d6308,d6408
-D7: d710,d720,d730,d750
-D8: d820,d835,d840,d860
-D9: d910,d920,d9200
-
-QUALIFICATORI PF e CAP: 0=ottimale/sempre 1=molto bene/spesso 2=abbastanza bene/qualche volta 3=non bene/raramente 4=per nulla/mai 8=non specificato 9=non applicabile
-FATTORI AMBIENTALI: +2=facilitatore importante +1=facilitatore non sufficiente -1=barriera media -2=barriera elevata -3=barriera molto elevata
-REGOLE NA: d166/d170/d172 → 9 fino 1° biennio primaria; d320/d340 → 9 se LIS non necessaria; d840/d860 → 9 al 1° ciclo.
-
-COMPORTAMENTO: chiedi prima dati anagrafici (sigla, nascita, ordine scolastico, classe, compilatore, qualifica), poi esplora D1→D9 un dominio alla volta con domande "L'alunno/a riesce a…?". Assegna PF e CAP. Valuta FA per ogni dominio.
-
-RISPOSTA: solo JSON valido, nessun testo fuori:
-{"message":"testo","hint":null,"quickReplies":[],"icfUpdate":{"domainId":"D1","items":[{"code":"d160","label":"Attenzione","pf":"2","cap":"3"}],"faItems":[{"code":"e330","label":"Insegnanti","effect":"+2"}]},"progress":0}`;
+// System prompt gestito lato server
 
 let history = [], profile = {}, currentTab = "ap", currentProgress = 0;
 
@@ -231,7 +211,7 @@ async function callProxy(userMessage) {
   history.push({ role:"user", content:userMessage });
   const res = await fetch(`${PROXY_URL}/chat`, {
     method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ messages:history, system:SYSTEM_PROMPT })
+    body: JSON.stringify({ messages:history })
   });
   if (!res.ok) throw new Error(`Proxy error ${res.status}`);
   const data = await res.json();
