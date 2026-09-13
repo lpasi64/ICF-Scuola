@@ -151,6 +151,7 @@
     <div class="quick-replies" id="quickReplies"></div>
     <div class="input-area">
       <textarea id="userInput" placeholder="Descrivi la situazione dell'alunno/a…" rows="1" disabled></textarea>
+      <select id="voiceSelect" title="Seleziona voce" style="border:1.5px solid var(--border);border-radius:8px;padding:4px 6px;font-size:0.72rem;font-family:Inter,sans-serif;color:var(--text);background:white;max-width:110px;cursor:pointer;outline:none;"></select>
       <button class="tts-toggle" onclick="toggleTTS()" id="ttsBtn" title="Voce AI on/off">🔊</button>
       <button class="mic-btn" onclick="toggleDictation()" id="micBtn" disabled title="Dettatura vocale">🎤</button>
       <button class="send-btn" onclick="sendMessage()" id="sendBtn" disabled>
@@ -345,9 +346,16 @@ function speak(text, onEnd) {
   utter.pitch = 1;
 
   // Prova a usare una voce italiana
+  // Seleziona la voce italiana migliore disponibile
   const voices = window.speechSynthesis.getVoices();
-  const itVoice = voices.find(v => v.lang.startsWith("it"));
+  // Usa la voce selezionata dall'utente, o la migliore disponibile
+  const sel = document.getElementById("voiceSelect");
+  const selectedName = sel?.value;
+  let itVoice = voices.find(v => v.name === selectedName);
+  if (!itVoice) itVoice = voices.find(v => v.lang.startsWith("it"));
   if (itVoice) utter.voice = itVoice;
+  utter.rate = 0.9;
+  utter.pitch = 1.05;
 
   const btn = document.getElementById("ttsBtn");
   btn.classList.add("speaking");
@@ -363,9 +371,36 @@ function speak(text, onEnd) {
   window.speechSynthesis.speak(utter);
 }
 
-// Carica le voci appena disponibili
+// Carica e popola il selettore voci
+function populateVoices() {
+  const voices = window.speechSynthesis.getVoices();
+  const sel = document.getElementById("voiceSelect");
+  if (!sel) return;
+  const itVoices = voices.filter(v => v.lang.startsWith("it"));
+  if (itVoices.length === 0) {
+    // Mostra tutte se non ci sono italiane
+    voices.forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v.name; opt.textContent = v.name.substring(0,22);
+      sel.appendChild(opt);
+    });
+  } else {
+    itVoices.forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v.name; opt.textContent = v.name.substring(0,22);
+      sel.appendChild(opt);
+    });
+  }
+  // Preseleziona la migliore
+  const preferred = ["Microsoft Elsa Online","Microsoft Elsa","Google italiano","Alice"];
+  for (const p of preferred) {
+    const found = Array.from(sel.options).find(o => o.value.includes(p));
+    if (found) { sel.value = found.value; break; }
+  }
+}
 if (window.speechSynthesis) {
-  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged = populateVoices;
+  populateVoices();
 }
 
 // ── DETTATURA ────────────────────────────────────────────────────────────────
