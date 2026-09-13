@@ -62,6 +62,11 @@
   .send-btn:hover { background: var(--indigo-light); }
   .send-btn:disabled { background: var(--border); cursor: not-allowed; }
   .send-btn svg { width: 17px; height: 17px; }
+  .mic-btn { background: var(--bg); color: var(--text-muted); border: 1.5px solid var(--border); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; font-size: 1.1rem; }
+  .mic-btn:hover { background: var(--amber-light); border-color: var(--amber); color: var(--amber); }
+  .mic-btn.recording { background: #FFE4E4; border-color: #DC2626; color: #DC2626; animation: micPulse 1s infinite; }
+  .mic-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  @keyframes micPulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
 
   /* ICF PANEL */
   .icf-panel { width: 310px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
@@ -146,6 +151,7 @@
     <div class="quick-replies" id="quickReplies"></div>
     <div class="input-area">
       <textarea id="userInput" placeholder="Descrivi la situazione dell'alunno/a…" rows="1" disabled></textarea>
+      <button class="mic-btn" onclick="toggleDictation()" id="micBtn" disabled title="Dettatura vocale">🎤</button>
       <button class="send-btn" onclick="sendMessage()" id="sendBtn" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
@@ -174,7 +180,7 @@
 
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────────
-let PROXY_URL = localStorage.getItem("icf_proxy_url") || "HTTPS://icf-scuola-production.up.railway.app";
+let PROXY_URL = localStorage.getItem("icf_proxy_url") || "";
 if (PROXY_URL) { document.getElementById("proxyUrl").value = PROXY_URL; }
 
 function saveProxy() {
@@ -186,6 +192,7 @@ function saveProxy() {
   document.getElementById("statusLabel").textContent = "AI attiva";
   document.getElementById("userInput").disabled = false;
   document.getElementById("sendBtn").disabled = false;
+  document.getElementById("micBtn").disabled = false;
   initChat();
 }
 
@@ -416,6 +423,61 @@ async function sendMessage() {
 }
 
 document.getElementById("userInput").addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} });
+
+// ── DETTATURA VOCALE ─────────────────────────────────────────────────────────
+let recognition = null;
+let isRecording = false;
+
+function initSpeech() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return false;
+  recognition = new SpeechRecognition();
+  recognition.lang = "it-IT";
+  recognition.continuous = false;
+  recognition.interimResults = true;
+
+  recognition.onresult = (e) => {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join("");
+    document.getElementById("userInput").value = transcript;
+    document.getElementById("userInput").style.height = "auto";
+    document.getElementById("userInput").style.height = Math.min(document.getElementById("userInput").scrollHeight, 100) + "px";
+  };
+
+  recognition.onend = () => {
+    isRecording = false;
+    const btn = document.getElementById("micBtn");
+    btn.classList.remove("recording");
+    btn.textContent = "🎤";
+    // Invia automaticamente se c'è testo
+    const text = document.getElementById("userInput").value.trim();
+    if (text) sendMessage();
+  };
+
+  recognition.onerror = (e) => {
+    isRecording = false;
+    document.getElementById("micBtn").classList.remove("recording");
+    document.getElementById("micBtn").textContent = "🎤";
+    if (e.error !== "no-speech") console.error("Speech error:", e.error);
+  };
+  return true;
+}
+
+function toggleDictation() {
+  if (!recognition && !initSpeech()) {
+    alert("Il tuo browser non supporta la dettatura. Usa Chrome o Edge.");
+    return;
+  }
+  if (isRecording) {
+    recognition.stop();
+  } else {
+    document.getElementById("userInput").value = "";
+    recognition.start();
+    isRecording = true;
+    const btn = document.getElementById("micBtn");
+    btn.classList.add("recording");
+    btn.textContent = "⏹";
+  }
+}
 document.getElementById("userInput").addEventListener("input",function(){ this.style.height="auto"; this.style.height=Math.min(this.scrollHeight,100)+"px"; });
 
 async function initChat() {
@@ -435,6 +497,7 @@ if(PROXY_URL) {
   document.getElementById("statusLabel").textContent="AI attiva";
   document.getElementById("userInput").disabled=false;
   document.getElementById("sendBtn").disabled=false;
+  document.getElementById("micBtn").disabled=false;
   window.addEventListener("load", initChat);
 }
 </script>
