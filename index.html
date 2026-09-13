@@ -331,13 +331,16 @@ function renderPanel() {
     const hasAna = Object.keys(anagrafica).length > 0;
     if(!hasAna){ panel.innerHTML='<div class="empty-state">Le informazioni anagrafiche appariranno qui man mano che emergono dal colloquio.</div>'; return; }
     const div=document.createElement("div"); div.className="domain-block d-d8";
-    div.innerHTML=\`<div class="domain-hdr"><div class="dname"><span>👤</span><span>Dati del caso</span></div></div>
-    <div class="domain-items">\${Object.entries(anagrafica).map(([k,v])=>\`
-      <div style="display:grid;grid-template-columns:90px 1fr;gap:4px;font-size:0.76rem;padding:2px 0;border-bottom:1px solid var(--border);">
-        <span style="color:var(--text-muted);font-weight:500">\${ANA_LABELS[k]||k}</span>
-        <span style="color:var(--text)">\${v}</span>
-      </div>\`).join("")}
-    </div>\`;
+    let rows = "";
+    Object.entries(anagrafica).forEach(([k,v]) => {
+      const label = ANA_LABELS[k] || k;
+      rows += '<div style="display:grid;grid-template-columns:90px 1fr;gap:4px;font-size:0.76rem;padding:3px 0;border-bottom:1px solid var(--border);">'
+            + '<span style="color:var(--text-muted);font-weight:500">' + label + '</span>'
+            + '<span style="color:var(--text)">' + v + '</span>'
+            + '</div>';
+    });
+    div.innerHTML = '<div class="domain-hdr"><div class="dname"><span>👤</span><span>Dati del caso</span></div></div>'
+                  + '<div class="domain-items">' + rows + '</div>';
     panel.appendChild(div);
     return;
   }
