@@ -81,9 +81,16 @@
   .progress-bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
   .progress-fill { height: 100%; background: linear-gradient(90deg, var(--green), #2DA05A); border-radius: 3px; transition: width 0.6s ease; }
   .progress-label { font-size: 0.68rem; color: var(--text-muted); margin-top: 4px; text-align: right; }
-  .panel-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-  .tab-btn { flex: 1; padding: 7px 4px; font-size: 0.68rem; font-weight: 600; text-align: center; cursor: pointer; border: none; background: none; color: var(--text-muted); border-bottom: 2px solid transparent; transition: all 0.15s; }
-  .tab-btn.active { color: var(--red); border-bottom-color: var(--red); }
+  .panel-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap; }
+  .tab-btn { flex: 1; min-width: 0; padding: 6px 2px 5px; font-size: 0; border: none; background: none; color: var(--text-muted); border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 2px; position: relative; opacity: 0.45; }
+  .tab-btn .tab-icon { font-size: 1rem; line-height: 1; }
+  .tab-btn .tab-label { font-size: 0.56rem; font-weight: 600; font-family: 'Inter', sans-serif; white-space: nowrap; color: var(--text-muted); }
+  .tab-btn .tab-badge { font-size: 0.52rem; font-weight: 700; font-family: 'Inter', sans-serif; background: var(--border); color: var(--text-muted); border-radius: 8px; padding: 0 4px; min-width: 14px; text-align: center; visibility: hidden; }
+  .tab-btn.has-data { opacity: 1; }
+  .tab-btn.has-data .tab-badge { visibility: visible; background: var(--red); color: white; }
+  .tab-btn.active { opacity: 1; border-bottom: 2px solid var(--red); }
+  .tab-btn.active .tab-label { color: var(--red); }
+  .tab-btn.active .tab-badge { background: var(--red); color: white; }
   .panel-body { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
   .panel-body::-webkit-scrollbar { width: 3px; }
   .panel-body::-webkit-scrollbar-thumb { background: var(--border); }
@@ -167,8 +174,12 @@
       <div class="progress-label" id="progressLabel">0 / 9 domini esplorati</div>
     </div>
     <div class="panel-tabs">
-      <button class="tab-btn active" onclick="switchTab('ap')">Attività &amp; Part.</button>
-      <button class="tab-btn" onclick="switchTab('fa')">Fattori Amb.</button>
+      <button class="tab-btn active" data-tab="ana" onclick="switchTab('ana')"><span class="tab-icon">👤</span><span class="tab-label">Anagrafica</span><span class="tab-badge" id="badge-ana"></span></button>
+      <button class="tab-btn" data-tab="b" onclick="switchTab('b')"><span class="tab-icon">⚡</span><span class="tab-label">Funzioni</span><span class="tab-badge" id="badge-b"></span></button>
+      <button class="tab-btn" data-tab="s" onclick="switchTab('s')"><span class="tab-icon">🔬</span><span class="tab-label">Strutture</span><span class="tab-badge" id="badge-s"></span></button>
+      <button class="tab-btn" data-tab="ap" onclick="switchTab('ap')"><span class="tab-icon">🎯</span><span class="tab-label">Attività</span><span class="tab-badge" id="badge-ap"></span></button>
+      <button class="tab-btn" data-tab="fp" onclick="switchTab('fp')"><span class="tab-icon">🧬</span><span class="tab-label">F. Pers.</span><span class="tab-badge" id="badge-fp"></span></button>
+      <button class="tab-btn" data-tab="fa" onclick="switchTab('fa')"><span class="tab-icon">🌍</span><span class="tab-label">F. Amb.</span><span class="tab-badge" id="badge-fa"></span></button>
     </div>
     <div class="panel-body" id="icfPanel">
       <div class="empty-state">Il profilo si costruirà man mano che avanziamo nel dialogo.</div>
@@ -206,7 +217,7 @@ const ICF_DOMAINS = [
 
 // System prompt gestito lato server
 
-let history = [], profile = {}, currentTab = "ap", currentProgress = 0;
+let history = [], profile = {}, anagrafica = {}, fpItems = [], bItems = [], sItems = [], currentTab = "ana", currentProgress = 0;
 
 async function callProxy(userMessage) {
   history.push({ role:"user", content:userMessage });
@@ -249,22 +260,124 @@ function updateProgress(n) {
 }
 function switchTab(t) {
   currentTab=t;
-  document.querySelectorAll(".tab-btn").forEach((b,i)=>b.classList.toggle("active",(i===0&&t==="ap")||(i===1&&t==="fa")));
+  document.querySelectorAll(".tab-btn").forEach(btn=>{
+    btn.classList.toggle("active", btn.dataset.tab===t);
+  });
+  updateTabBadges();
   renderPanel();
 }
-function applyUpdate(u) {
-  if(!u) return;
-  const id=u.domainId;
-  if(!profile[id]) profile[id]={items:[],faItems:[]};
-  (u.items||[]).forEach(item=>{ const s=profile[id].items; const i=s.findIndex(x=>x.code===item.code); if(i>=0)s[i]=item; else s.push(item); });
-  (u.faItems||[]).forEach(fa=>{ const s=profile[id].faItems; const i=s.findIndex(x=>x.code===fa.code); if(i>=0)s[i]=fa; else s.push(fa); });
+
+function updateTabBadges() {
+  const counts = {
+    ana: Object.keys(anagrafica).length,
+    b: bItems.length,
+    s: sItems.length,
+    ap: Object.values(profile).reduce((n,d)=>n+d.items.length,0),
+    fp: fpItems.length,
+    fa: Object.values(profile).reduce((n,d)=>n+d.faItems.length,0)
+  };
+  Object.entries(counts).forEach(([tab, n]) => {
+    const badge = document.getElementById(`badge-${tab}`);
+    const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+    if (!badge || !btn) return;
+    badge.textContent = n > 0 ? n : "";
+    btn.classList.toggle("has-data", n > 0);
+  });
+}
+function applyUpdate(r) {
+  // Anagrafica
+  if(r.anagrafica) {
+    Object.entries(r.anagrafica).forEach(([k,v])=>{ if(v) anagrafica[k]=v; });
+  }
+  // Fattori Personali
+  if(r.fpItems && r.fpItems.length) {
+    r.fpItems.forEach(fp => {
+      const i = fpItems.findIndex(x => x.code === fp.code);
+      if(i>=0) fpItems[i]=fp; else fpItems.push(fp);
+    });
+  }
+  // Funzioni corporee (b)
+  if(r.bItems && r.bItems.length) {
+    r.bItems.forEach(b => {
+      const i = bItems.findIndex(x => x.code === b.code);
+      if(i>=0) bItems[i]=b; else bItems.push(b);
+    });
+  }
+  // Strutture corporee (s)
+  if(r.sItems && r.sItems.length) {
+    r.sItems.forEach(s => {
+      const i = sItems.findIndex(x => x.code === s.code);
+      if(i>=0) sItems[i]=s; else sItems.push(s);
+    });
+  }
+  // ICF domini
+  const u = r.icfUpdate;
+  if(u) {
+    const id=u.domainId;
+    if(!profile[id]) profile[id]={items:[],faItems:[]};
+    (u.items||[]).forEach(item=>{ const s=profile[id].items; const i=s.findIndex(x=>x.code===item.code); if(i>=0)s[i]=item; else s.push(item); });
+    (u.faItems||[]).forEach(fa=>{ const s=profile[id].faItems; const i=s.findIndex(x=>x.code===fa.code); if(i>=0)s[i]=fa; else s.push(fa); });
+  }
   renderPanel();
 }
+// Etichette anagrafica
+const ANA_LABELS = {nome:"Nome/Sigla",eta:"Età",classe:"Classe",scuola:"Scuola",diagnosi:"Diagnosi/Condizioni",famiglia:"Famiglia",interessi:"Interessi",supporti:"Supporti attivi"};
+
 function renderPanel() {
   const panel=document.getElementById("icfPanel");
+  panel.innerHTML="";
+
+  if(currentTab==="ana") {
+    const hasAna = Object.keys(anagrafica).length > 0;
+    if(!hasAna){ panel.innerHTML='<div class="empty-state">Le informazioni anagrafiche appariranno qui man mano che emergono dal colloquio.</div>'; return; }
+    const div=document.createElement("div"); div.className="domain-block d-d8";
+    div.innerHTML=\`<div class="domain-hdr"><div class="dname"><span>👤</span><span>Dati del caso</span></div></div>
+    <div class="domain-items">\${Object.entries(anagrafica).map(([k,v])=>\`
+      <div style="display:grid;grid-template-columns:90px 1fr;gap:4px;font-size:0.76rem;padding:2px 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--text-muted);font-weight:500">\${ANA_LABELS[k]||k}</span>
+        <span style="color:var(--text)">\${v}</span>
+      </div>\`).join("")}
+    </div>\`;
+    panel.appendChild(div);
+    return;
+  }
+
+  updateTabBadges();
+
   const hasAny=Object.values(profile).some(d=>d.items.length>0||d.faItems.length>0);
   if(!hasAny){ panel.innerHTML='<div class="empty-state">Il profilo si costruirà man mano che avanziamo nel dialogo.</div>'; return; }
-  panel.innerHTML="";
+  if(currentTab==="b") {
+    if(!bItems.length){ panel.innerHTML='<div class="empty-state">Le funzioni corporee (b) appariranno qui se emergono dati clinici dal colloquio.</div>'; return; }
+    const div=document.createElement("div"); div.className="domain-block d-d2";
+    div.innerHTML=`<div class="domain-hdr"><div class="dname"><span>⚡</span><span>Funzioni corporee (b)</span></div><span class="domain-badge">${bItems.length}</span></div>
+    <div class="domain-items">
+      <div class="icf-row"><span class="code"></span><span></span><span class="qual-hdr" style="grid-column:3/5">Qual.</span></div>
+      ${bItems.map(b=>`<div class="icf-row">
+        <span class="code">${b.code}</span>
+        <span class="lbl">${b.label}${b.note?`<br><span style="font-size:0.67rem;color:var(--text-muted)">${b.note}</span>`:""}</span>
+        <span class="qual-cell" style="grid-column:3/5">${b.qualifier??'—'}</span>
+      </div>`).join("")}
+    </div>`;
+    panel.appendChild(div);
+    return;
+  }
+
+  if(currentTab==="s") {
+    if(!sItems.length){ panel.innerHTML='<div class="empty-state">Le strutture corporee (s) appariranno qui solo se esplicitamente menzionate (lesioni, malformazioni, ecc.).</div>'; return; }
+    const div=document.createElement("div"); div.className="domain-block d-d4";
+    div.innerHTML=`<div class="domain-hdr"><div class="dname"><span>🔬</span><span>Strutture corporee (s)</span></div><span class="domain-badge">${sItems.length}</span></div>
+    <div class="domain-items">
+      <div class="icf-row"><span class="code"></span><span></span><span class="qual-hdr" style="grid-column:3/5">Qual.</span></div>
+      ${sItems.map(s=>`<div class="icf-row">
+        <span class="code">${s.code}</span>
+        <span class="lbl">${s.label}${s.note?`<br><span style="font-size:0.67rem;color:var(--text-muted)">${s.note}</span>`:""}</span>
+        <span class="qual-cell" style="grid-column:3/5">${s.qualifier??'—'}</span>
+      </div>`).join("")}
+    </div>`;
+    panel.appendChild(div);
+    return;
+  }
+
   if(currentTab==="ap") {
     ICF_DOMAINS.forEach(domain=>{
       const data=profile[domain.id];
@@ -277,7 +390,23 @@ function renderPanel() {
       </div>`;
       panel.appendChild(div);
     });
-  } else {
+  }
+
+  if(currentTab==="fp") {
+    if(!fpItems.length){ panel.innerHTML='<div class="empty-state">I fattori personali emergeranno man mano dal colloquio.</div>'; return; }
+    const div=document.createElement("div"); div.className="domain-block d-d7";
+    div.innerHTML=`<div class="domain-hdr"><div class="dname"><span>🧬</span><span>Fattori Personali</span></div><span class="domain-badge">${fpItems.length}</span></div>
+    <div class="domain-items">${fpItems.map(fp=>`
+      <div style="display:grid;grid-template-columns:44px 1fr;gap:6px;font-size:0.74rem;padding:3px 0;border-bottom:1px solid var(--border);align-items:start;">
+        <span style="font-family:Courier New,monospace;font-size:0.67rem;color:var(--text-muted);padding-top:1px">${fp.code}</span>
+        <div><span style="font-weight:500;color:var(--text)">${fp.label}</span>${fp.note?`<br><span style="font-size:0.7rem;color:var(--text-muted)">${fp.note}</span>`:""}</div>
+      </div>`).join("")}
+    </div>`;
+    panel.appendChild(div);
+    return;
+  }
+
+  if(currentTab==="fa") {
     const allFa={};
     Object.values(profile).forEach(d=>{ (d.faItems||[]).forEach(fa=>{ allFa[fa.code]={label:fa.label||fa.code,effect:fa.effect}; }); });
     if(!Object.keys(allFa).length){ panel.innerHTML='<div class="empty-state">Nessun fattore ambientale ancora rilevato.</div>'; return; }
@@ -288,12 +417,12 @@ function renderPanel() {
   }
 }
 function exportJSON() {
-  const blob=new Blob([JSON.stringify({generato:new Date().toISOString(),questionario:"ICF-Scuola rev.2026",profilo:profile},null,2)],{type:"application/json"});
+  const blob=new Blob([JSON.stringify({generato:new Date().toISOString(),questionario:"ICF-Scuola rev.2026",anagrafica,funzioniCorporee:bItems,struttureCorporee:sItems,fattoriPersonali:fpItems,profilo:profile},null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="profilo-icf.json"; a.click();
 }
 function resetSession() {
   if(!confirm("Avviare una nuova compilazione? I dati non salvati andranno persi.")) return;
-  history=[]; profile={}; currentProgress=0;
+  history=[]; profile={}; anagrafica={}; fpItems=[]; bItems=[]; sItems=[]; currentProgress=0;
   document.getElementById("messages").innerHTML="";
   document.getElementById("quickReplies").innerHTML="";
   updateProgress(0); renderPanel(); initChat();
@@ -309,7 +438,7 @@ async function sendMessage() {
     const r=await callProxy(text); removeTyping();
     addMessage("ai",r.message,r.hint);
     if(r.quickReplies?.length) setQR(r.quickReplies);
-    if(r.icfUpdate) applyUpdate(r.icfUpdate);
+    applyUpdate(r);
     if(typeof r.progress==="number") updateProgress(r.progress);
     speak(r.message, startMicAfterTTS);
   } catch(err) {
