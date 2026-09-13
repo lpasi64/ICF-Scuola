@@ -529,7 +529,8 @@ function populateVoices() {
 }
 if (window.speechSynthesis) {
   window.speechSynthesis.onvoiceschanged = populateVoices;
-  populateVoices();
+  // Alcune versioni browser caricano le voci subito, altre no
+  setTimeout(populateVoices, 200);
 }
 
 // ── DETTATURA ────────────────────────────────────────────────────────────────
@@ -575,11 +576,24 @@ async function initChat() {
   }
 }
 
-document.getElementById("statusLabel").textContent="AI attiva";
-document.getElementById("userInput").disabled=false;
-document.getElementById("sendBtn").disabled=false;
-document.getElementById("micBtn").disabled=false;
-window.addEventListener("load", initChat);
+// Avvio robusto — aspetta il DOM completo
+function boot() {
+  try {
+    document.getElementById("statusLabel").textContent = "AI attiva";
+    document.getElementById("userInput").disabled = false;
+    document.getElementById("sendBtn").disabled = false;
+    document.getElementById("micBtn").disabled = false;
+    initChat();
+  } catch(e) {
+    console.error("Errore avvio:", e);
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", boot);
+} else {
+  boot();
+}
 </script>
 </body>
 </html>
