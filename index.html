@@ -130,6 +130,12 @@
   .btn-json:hover { background: #155C30; }
   .btn-reset { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
   .btn-reset:hover { background: var(--border); }
+  .btn-draft { background: var(--green-light); color: var(--green); border: 1px solid var(--green); }
+  .btn-draft:hover { background: var(--green); color: white; }
+  .btn-load { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
+  .btn-load:hover { background: var(--indigo,#1E2D5A); color: white; border-color: var(--indigo,#1E2D5A); }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--green); color: white; padding: 10px 20px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; font-family: 'Inter',sans-serif; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 999; }
+  .toast.show { opacity: 1; }
 
   .typing-indicator { display: flex; gap: 5px; align-items: center; padding: 12px 15px; }
   .typing-indicator span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); animation: bounce 1.2s infinite; }
@@ -185,9 +191,13 @@
       <div class="empty-state">Il profilo si costruirà man mano che avanziamo nel dialogo.</div>
     </div>
     <div class="export-area">
-      <button class="export-btn btn-json" onclick="exportJSON()">⬇ Esporta JSON</button>
+      <button class="export-btn btn-draft" onclick="saveDraft()" title="Salva bozza nel browser">💾 Bozza</button>
+      <button class="export-btn btn-load" onclick="document.getElementById('loadInput').click()" title="Carica JSON precedente">📂 Carica</button>
+      <button class="export-btn btn-json" onclick="exportJSON()">⬇ JSON</button>
       <button class="export-btn btn-reset" onclick="resetSession()">↺ Nuovo</button>
     </div>
+    <input type="file" id="loadInput" accept=".json" style="display:none" onchange="loadJSON(event)">
+    <div class="toast" id="toast"></div>
   </div>
 </div>
 
@@ -297,6 +307,8 @@ function applyUpdate(r) {
   // Fattori Personali
   if(r.fpItems && r.fpItems.length) {
     r.fpItems.forEach(fp => {
+      // Normalizza: "1310" → "i310", "i1310" → "i310"
+      if(fp.code && !fp.code.startsWith("i")) fp.code = "i" + fp.code;
       const i = fpItems.findIndex(x => x.code === fp.code);
       if(i>=0) fpItems[i]=fp; else fpItems.push(fp);
     });
@@ -304,6 +316,7 @@ function applyUpdate(r) {
   // Funzioni corporee (b)
   if(r.bItems && r.bItems.length) {
     r.bItems.forEach(b => {
+      if(b.code && !b.code.startsWith("b")) b.code = "b" + b.code;
       const i = bItems.findIndex(x => x.code === b.code);
       if(i>=0) bItems[i]=b; else bItems.push(b);
     });
@@ -311,6 +324,7 @@ function applyUpdate(r) {
   // Strutture corporee (s)
   if(r.sItems && r.sItems.length) {
     r.sItems.forEach(s => {
+      if(s.code && !s.code.startsWith("s")) s.code = "s" + s.code;
       const i = sItems.findIndex(x => x.code === s.code);
       if(i>=0) sItems[i]=s; else sItems.push(s);
     });
@@ -434,10 +448,109 @@ function renderPanel() {
     panel.appendChild(div);
   }
 }
-function exportJSON() {
-  const blob=new Blob([JSON.stringify({generato:new Date().toISOString(),questionario:"ICF-Scuola rev.2026",anagrafica,funzioniCorporee:bItems,struttureCorporee:sItems,fattoriPersonali:fpItems,profilo:profile},null,2)],{type:"application/json"});
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="profilo-icf.json"; a.click();
+// ── BOZZA ────────────────────────────────────────────────────────────────────
+function getSessionData() {
+  return {
+    generato: new Date().toISOString(),
+    questionario: "ICF-Scuola rev.2026",
+    anagrafica,
+    funzioniCorporee: bItems,
+    struttureCorporee: sItems,
+    fattoriPersonali: fpItems,
+    profilo: profile,
+    _history: history
+  };
 }
+
+function saveDraft() {
+  try {
+    const data = getSessionData();
+    localStorage.setItem("icf_draft", JSON.stringify(data));
+    showToast("💾 Bozza salvata nel browser");
+  } catch(e) {
+    showToast("❌ Errore nel salvataggio");
+  }
+}
+
+function loadJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      // Ripristina stato
+      anagrafica = data.anagrafica || {};
+      bItems = data.funzioniCorporee || [];
+      sItems = data.struttureCorporee || [];
+      fpItems = data.fattoriPersonali || [];
+      profile = data.profilo || {};
+      // Ripristina conversazione se presente
+      if (data._history && data._history.length) {
+        history = data._history;
+        // Mostra un riepilogo in chat
+        document.getElementById("messages").innerHTML = "";
+        addMessage("ai", "Ho caricato la sessione precedente. Possiamo riprendere il colloquio da dove eravamo.");
+      }
+      currentProgress = Object.keys(profile).length;
+      updateProgress(currentProgress);
+      updateTabBadges();
+      renderPanel();
+      showToast("📂 Sessione caricata");
+    } catch(err) {
+      showToast("❌ File non valido");
+    }
+  };
+  reader.readAsText(file);
+  // Reset input per permettere di ricaricare lo stesso file
+  event.target.value = "";
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2500);
+}
+
+// Carica bozza automaticamente se presente
+window.addEventListener("load", () => {
+  const draft = localStorage.getItem("icf_draft");
+  if (draft) {
+    try {
+      const data = JSON.parse(draft);
+      const nome = data.anagrafica?.nome || "sessione precedente";
+      // Chiedi se riprendere
+      const resume = confirm("È presente una bozza salvata per " + nome + ". Vuoi riprenderla?");
+      if (resume) {
+        anagrafica = data.anagrafica || {};
+        bItems = data.funzioniCorporee || [];
+        sItems = data.struttureCorporee || [];
+        fpItems = data.fattoriPersonali || [];
+        profile = data.profilo || {};
+        if (data._history) history = data._history;
+        currentProgress = Object.keys(profile).length;
+        updateProgress(currentProgress);
+        updateTabBadges();
+        renderPanel();
+        document.getElementById("messages").innerHTML = "";
+        addMessage("ai", "Ho ripreso la bozza salvata. Possiamo continuare il colloquio.");
+        return; // non avvia initChat
+      }
+    } catch(e) {}
+  }
+});
+
+function exportJSON() {
+  const data = getSessionData();
+  delete data._history; // non esportare la history grezza
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "profilo-icf-" + (anagrafica.nome||"anonimo").replace(/\s+/g,"-") + "-" + new Date().toISOString().slice(0,10) + ".json";
+  a.click();
+}
+
 function resetSession() {
   if(!confirm("Avviare una nuova compilazione? I dati non salvati andranno persi.")) return;
   history=[]; profile={}; anagrafica={}; fpItems=[]; bItems=[]; sItems=[]; currentProgress=0;
