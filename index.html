@@ -133,6 +133,21 @@
   .btn-json:hover { background: #155C30; }
   .btn-reset { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
   .btn-reset:hover { background: var(--border); }
+
+  /* Generazione PEI */
+  .pei-area { padding: 0 14px 10px; flex-shrink: 0; }
+  .btn-pei { width: 100%; background: #1E2D5A; color: white; }
+  .btn-pei:hover { background: #142047; }
+  .btn-pei:disabled { opacity: 0.6; cursor: not-allowed; }
+  .pei-modal-backdrop { position: fixed; inset: 0; background: rgba(20,20,30,0.45); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+  .pei-modal { background: white; border-radius: 14px; padding: 20px 22px; width: 100%; max-width: 340px; box-shadow: 0 12px 40px rgba(0,0,0,0.25); font-family: 'Inter', sans-serif; }
+  .pei-modal h3 { font-family: 'Lora', serif; font-size: 1.05rem; margin-bottom: 4px; color: var(--text); }
+  .pei-modal-hint { font-size: 0.74rem; color: var(--text-muted); margin-bottom: 14px; line-height: 1.4; }
+  .pei-modal label { display: block; font-size: 0.72rem; font-weight: 600; color: var(--text-muted); margin-bottom: 3px; margin-top: 10px; }
+  .pei-modal select, .pei-modal input { width: 100%; padding: 7px 9px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 0.82rem; font-family: 'Inter', sans-serif; color: var(--text); background: white; }
+  .pei-modal select:focus, .pei-modal input:focus { outline: none; border-color: #1E2D5A; }
+  .pei-modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .pei-modal-status { font-size: 0.74rem; color: var(--text-muted); margin-top: 10px; line-height: 1.4; min-height: 1em; }
   .btn-draft { background: var(--green-light); color: var(--green); border: 1px solid var(--green); }
   .btn-draft:hover { background: var(--green); color: white; }
   .btn-load { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
@@ -200,8 +215,47 @@
       <button class="export-btn btn-json" onclick="exportJSON()">⬇ JSON</button>
       <button class="export-btn btn-reset" onclick="resetSession()">↺ Nuovo</button>
     </div>
+    <div class="pei-area">
+      <button class="export-btn btn-pei" onclick="openPeiForm()">📄 Genera PEI (.docx)</button>
+    </div>
     <input type="file" id="loadInput" accept=".json" style="display:none" onchange="loadJSON(event)">
     <div class="toast" id="toast"></div>
+
+    <div class="pei-modal-backdrop" id="peiModalBackdrop">
+      <div class="pei-modal">
+        <h3>Genera PEI</h3>
+        <p class="pei-modal-hint">Alcuni dati non raccolti nel colloquio — confermali prima di generare il documento.</p>
+
+        <label for="peiGrado">Grado scolastico</label>
+        <select id="peiGrado" onchange="togglePeiIstituto()">
+          <option value="infanzia">Infanzia</option>
+          <option value="primaria">Primaria</option>
+          <option value="sec1">Secondaria di 1° grado</option>
+          <option value="sec2">Secondaria di 2° grado</option>
+        </select>
+
+        <div id="peiIstitutoWrap" style="display:none">
+          <label for="peiIstituto">Istituto</label>
+          <select id="peiIstituto"></select>
+        </div>
+
+        <label for="peiEta">Età</label>
+        <input type="number" id="peiEta" min="3" max="21">
+
+        <label for="peiSesso">Sesso</label>
+        <select id="peiSesso">
+          <option value="">— seleziona —</option>
+          <option value="M">M</option>
+          <option value="F">F</option>
+        </select>
+
+        <div class="pei-modal-actions">
+          <button class="export-btn btn-reset" onclick="closePeiModal()">Annulla</button>
+          <button class="export-btn btn-pei" onclick="submitPeiGeneration()">Genera</button>
+        </div>
+        <div class="pei-modal-status" id="peiModalStatus"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -564,6 +618,98 @@ function exportJSON() {
   a.href = URL.createObjectURL(blob);
   a.download = "profilo-icf-" + (anagrafica.nome||"anonimo").replace(/\s+/g,"-") + "-" + new Date().toISOString().slice(0,10) + ".json";
   a.click();
+}
+
+// ── GENERAZIONE PEI ──────────────────────────────────────────────────────────
+// Euristica per precompilare il grado scolastico dal testo libero raccolto nel colloquio
+// (anagrafica.scuola) — sempre modificabile nel modulo, non deve mai bloccare l'utente.
+function guessGrado() {
+  const s = (anagrafica.scuola || "").toLowerCase();
+  if (s.includes("infanzia")) return "infanzia";
+  if (s.includes("primaria")) return "primaria";
+  if (s.includes("secondaria")) {
+    // Attenzione: "secondaria" contiene "second" come sottostringa — usare "secondo" (con la "o"
+    // finale) per non far scattare sempre sec2 su qualsiasi scuola secondaria.
+    if (/\bsecondo\b|2°|2 grado/.test(s)) return "sec2";
+    return "sec1";
+  }
+  return "primaria";
+}
+
+function togglePeiIstituto() {
+  const grado = document.getElementById("peiGrado").value;
+  document.getElementById("peiIstitutoWrap").style.display = grado === "sec2" ? "block" : "none";
+}
+
+let peiIstitutiCache = null;
+
+async function openPeiForm() {
+  document.getElementById("peiGrado").value = guessGrado();
+  const etaNum = String(anagrafica.eta || "").trim();
+  document.getElementById("peiEta").value = /^\d+$/.test(etaNum) ? etaNum : "";
+  document.getElementById("peiSesso").value = "";
+  document.getElementById("peiModalStatus").textContent = "";
+  togglePeiIstituto();
+  document.getElementById("peiModalBackdrop").style.display = "flex";
+
+  if (!peiIstitutiCache) {
+    try {
+      const r = await fetch(`${PROXY_URL}/pei-config`);
+      const data = await r.json();
+      peiIstitutiCache = data.istituti || [];
+    } catch (e) {
+      peiIstitutiCache = [];
+    }
+    const sel = document.getElementById("peiIstituto");
+    sel.innerHTML = peiIstitutiCache.map(i => `<option value="${i}">${i}</option>`).join("");
+  }
+}
+
+function closePeiModal() {
+  document.getElementById("peiModalBackdrop").style.display = "none";
+}
+
+async function submitPeiGeneration() {
+  const grado = document.getElementById("peiGrado").value;
+  const istituto = grado === "sec2" ? document.getElementById("peiIstituto").value : "";
+  const eta = document.getElementById("peiEta").value.trim();
+  const sesso = document.getElementById("peiSesso").value;
+  const statusEl = document.getElementById("peiModalStatus");
+  const btn = document.querySelector("#peiModalBackdrop .btn-pei");
+
+  if (!eta || !sesso) { statusEl.textContent = "Età e sesso sono obbligatori."; return; }
+  if (grado === "sec2" && !istituto) { statusEl.textContent = "Seleziona l'istituto."; return; }
+
+  btn.disabled = true;
+  statusEl.textContent = "Generazione in corso — circa 45-75 secondi (4 chiamate AI in parallelo)...";
+
+  try {
+    const icf = buildFinalExportData({ anagrafica, profile, bItems, sItems, fpItems });
+    const res = await fetch(`${PROXY_URL}/genera-pei`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eta, sesso, grado, istituto, icf })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Errore sconosciuto" }));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const cd = res.headers.get("Content-Disposition") || "";
+    const fnMatch = cd.match(/filename="([^"]+)"/);
+    a.download = fnMatch ? fnMatch[1] : `PEI_${grado}_${new Date().getFullYear()}.docx`;
+    a.href = url;
+    a.click();
+    URL.revokeObjectURL(url);
+    statusEl.textContent = "✅ Documento generato e scaricato.";
+    setTimeout(closePeiModal, 1500);
+  } catch (err) {
+    statusEl.textContent = "❌ " + err.message;
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function resetSession() {
