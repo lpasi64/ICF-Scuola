@@ -177,7 +177,7 @@
     <div class="panel-header">
       <h2>Profilo ICF in costruzione</h2>
       <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
-      <div class="progress-label" id="progressLabel">0 / 9 domini esplorati</div>
+      <div class="progress-label" id="progressLabel">0 / 47 item valutati</div>
     </div>
     <div class="panel-tabs">
       <button class="tab-btn active" data-tab="ana" onclick="switchTab('ana')"><span class="tab-icon">👤</span><span class="tab-label">Anagrafica</span><span class="tab-badge" id="badge-ana"></span></button>
@@ -201,29 +201,13 @@
   </div>
 </div>
 
+<script src="icf-transform.js"></script>
 <script>
 const PROXY_URL = "https://icf-scuola-production.up.railway.app";
 
-const ICF_DOMAINS = [
-  { id:"D1", cls:"d-d1", icon:"🧠", label:"Apprendimento e Applicazione Conoscenze",
-    items:[{code:"d137",label:"Acquisire concetti"},{code:"d138",label:"Cercare e comprendere fatti"},{code:"d155",label:"Apprendere abilità pratiche/cognitive"},{code:"d160",label:"Attenzione al compito"},{code:"d166",label:"Leggere"},{code:"d170",label:"Scrivere"},{code:"d172",label:"Calcolare"},{code:"d175",label:"Problem solving"},{code:"d177",label:"Prendere decisioni"},{code:"d179",label:"Applicare conoscenze"}]},
-  { id:"D2", cls:"d-d2", icon:"📋", label:"Compiti e Richieste Generali",
-    items:[{code:"d210",label:"Compito semplice"},{code:"d220",label:"Più compiti in parallelo"},{code:"d230",label:"Attività abituali della giornata"},{code:"d240",label:"Controllare emotività/stress"}]},
-  { id:"D3", cls:"d-d3", icon:"💬", label:"Comunicazione",
-    items:[{code:"d310",label:"Comprendere messaggi verbali"},{code:"d315",label:"Comprendere messaggi non verbali"},{code:"d320",label:"Comprendere LIS"},{code:"d330",label:"Parlare"},{code:"d335",label:"Esprimere messaggi non verbali"},{code:"d340",label:"Produrre LIS"},{code:"d349",label:"Altre lingue"},{code:"d350",label:"Dialogare"},{code:"d360",label:"Strumenti di comunicazione"}]},
-  { id:"D4", cls:"d-d4", icon:"🚶", label:"Mobilità",
-    items:[{code:"d430",label:"Sollevare/trasportare oggetti"},{code:"d440",label:"Uso delle mani (precisione)"},{code:"d450",label:"Camminare"},{code:"d460",label:"Raggiungere luoghi"},{code:"d465",label:"Spostarsi con ausili"},{code:"d470",label:"Mezzo di trasporto"}]},
-  { id:"D5", cls:"d-d5", icon:"🧴", label:"Cura di Sé",
-    items:[{code:"d510",label:"Igiene personale"},{code:"d530",label:"Bisogni corporali"},{code:"d540",label:"Vestirsi/svestirsi"},{code:"d550",label:"Mangiare"},{code:"d570",label:"Cura della salute"}]},
-  { id:"D6", cls:"d-d6", icon:"🏠", label:"Vita Domestica",
-    items:[{code:"d6308",label:"Preparare pasti semplici"},{code:"d6408",label:"Lavori domestici"}]},
-  { id:"D7", cls:"d-d7", icon:"🤝", label:"Relazioni Interpersonali",
-    items:[{code:"d710",label:"Interazioni semplici"},{code:"d720",label:"Regolare il comportamento"},{code:"d730",label:"Relazione con estranei"},{code:"d750",label:"Relazioni informali"}]},
-  { id:"D8", cls:"d-d8", icon:"🏫", label:"Aree di Vita — Istruzione",
-    items:[{code:"d820",label:"Frequentare la scuola"},{code:"d835",label:"Vita scolastica"},{code:"d840",label:"Stage/PCTO"},{code:"d860",label:"Usare il denaro"}]},
-  { id:"D9", cls:"d-d9", icon:"🌳", label:"Vita Sociale e di Comunità",
-    items:[{code:"d910",label:"Attività sociali"},{code:"d920",label:"Attività ricreative/sportive"},{code:"d9200",label:"Attività di gioco"}]}
-];
+// Elenco domini/item e funzioni di trasformazione: unica fonte in icf-transform.js
+// (condivisa col test automatico test-icf-transform.js).
+const { ICF_DOMAINS, countCompletion, buildFinalExportData } = ICFTransform;
 
 // System prompt gestito lato server
 
@@ -269,9 +253,12 @@ function setQR(opts) {
   (opts||[]).forEach(o=>{ const b=document.createElement("button"); b.className="qr-btn"; b.textContent=o; b.onclick=()=>{ document.getElementById("userInput").value=o; sendMessage(); }; c.appendChild(b); });
 }
 function updateProgress(n) {
+  // n (0-9, riportato dall'AI) è mantenuto solo per compatibilità di chiamata;
+  // la barra/etichetta ora riflette il completamento reale degli item (stato client, non AI).
   currentProgress=n;
-  document.getElementById("progressFill").style.width=Math.round(n/9*100)+"%";
-  document.getElementById("progressLabel").textContent=`${n} / 9 domini esplorati`;
+  const { filled, total } = countCompletion(profile);
+  document.getElementById("progressFill").style.width=(total?Math.round(filled/total*100):0)+"%";
+  document.getElementById("progressLabel").textContent=`${filled} / ${total} item valutati`;
 }
 function switchTab(t) {
   currentTab=t;
@@ -347,6 +334,7 @@ function applyUpdate(r) {
     switchTab("ana");
   }
   updateTabBadges();
+  updateProgress(currentProgress);
   renderPanel();
 }
 // Etichette anagrafica
@@ -375,6 +363,31 @@ function renderPanel() {
   }
 
   updateTabBadges();
+
+  if(currentTab==="ap") {
+    // Mostra sempre tutti i 9 domini e i 47 item ufficiali (anche non ancora valutati, come "—")
+    // così la copertura mancante è visibile, non solo quella già raccolta.
+    const completion = countCompletion(profile);
+    ICF_DOMAINS.forEach(domain=>{
+      const data=profile[domain.id]||{items:[],faItems:[]};
+      const c=completion.perDomain[domain.id];
+      const div=document.createElement("div"); div.className=`domain-block ${domain.cls}`;
+      div.innerHTML=`<div class="domain-hdr"><div class="dname"><span>${domain.icon}</span><span>${domain.id} · ${domain.label}</span></div><span class="domain-badge">${c.filled}/${c.total}</span></div>
+      <div class="domain-items">
+        <div class="icf-row"><span class="code"></span><span></span><span class="qual-hdr">PF</span><span class="qual-hdr">CAP</span></div>
+        ${domain.items.map(defIt=>{
+          const it=data.items.find(x=>x.code===defIt.code);
+          const pf=(it&&it.pf!==undefined&&it.pf!==null&&it.pf!=="")?it.pf:"—";
+          const cap=(it&&it.cap!==undefined&&it.cap!==null&&it.cap!=="")?it.cap:"—";
+          const inferred=it&&it.fonte==="inferenza";
+          const nota=it&&it.nota?`<br><span style="font-size:0.67rem;color:var(--text-muted)">${inferred?"💡 ":""}${it.nota}</span>`:"";
+          return `<div class="icf-row"><span class="code">${defIt.code}</span><span class="lbl">${defIt.label}${nota}</span><span class="qual-cell">${pf}</span><span class="qual-cell">${cap}</span></div>`;
+        }).join("")}
+      </div>`;
+      panel.appendChild(div);
+    });
+    return;
+  }
 
   const hasAny=Object.values(profile).some(d=>d.items.length>0||d.faItems.length>0);
   if(!hasAny){ panel.innerHTML='<div class="empty-state">Il profilo si costruirà man mano che avanziamo nel dialogo.</div>'; return; }
@@ -408,20 +421,6 @@ function renderPanel() {
     </div>`;
     panel.appendChild(div);
     return;
-  }
-
-  if(currentTab==="ap") {
-    ICF_DOMAINS.forEach(domain=>{
-      const data=profile[domain.id];
-      if(!data||data.items.length===0) return;
-      const div=document.createElement("div"); div.className=`domain-block ${domain.cls}`;
-      div.innerHTML=`<div class="domain-hdr"><div class="dname"><span>${domain.icon}</span><span>${domain.id} · ${domain.label}</span></div><span class="domain-badge">${data.items.length}</span></div>
-      <div class="domain-items">
-        <div class="icf-row"><span class="code"></span><span></span><span class="qual-hdr">PF</span><span class="qual-hdr">CAP</span></div>
-        ${data.items.map(it=>`<div class="icf-row"><span class="code">${it.code}</span><span class="lbl">${it.label}</span><span class="qual-cell">${it.pf??'—'}</span><span class="qual-cell">${it.cap??'—'}</span></div>`).join("")}
-      </div>`;
-      panel.appendChild(div);
-    });
   }
 
   if(currentTab==="fp") {
@@ -542,8 +541,10 @@ window.addEventListener("load", () => {
 });
 
 function exportJSON() {
-  const data = getSessionData();
-  delete data._history; // non esportare la history grezza
+  // Schema allineato al formato atteso a valle (Generatore PEI): meta/allievo/scala/
+  // codici_icf/domini_icf/sintesi_automatica — vedi icf-transform.js. Diverso dal formato
+  // "bozza" (getSessionData) che serve solo a salvare/ripristinare la sessione nel browser.
+  const data = buildFinalExportData({ anagrafica, profile, bItems, sItems, fpItems });
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
