@@ -221,6 +221,36 @@ function countCompletion(profile) {
   return { filled, total: totalItemCount(), perDomain };
 }
 
+// Elenco piatto degli item senza ancora un valore (per il controllo di completezza
+// lato frontend quando l'AI propone di chiudere il colloquio — vedi getMissingByDomain).
+function getMissingItems(profile) {
+  const missing = [];
+  ICF_DOMAINS.forEach(domain => {
+    const items = (profile && profile[domain.id] && profile[domain.id].items) || [];
+    domain.items.forEach(({ code, label }) => {
+      const found = items.find(x => x.code === code);
+      if (!found || toNumOrNull(found.pf) === null) {
+        missing.push({ code, label, domainId: domain.id, domainLabel: domain.label });
+      }
+    });
+  });
+  return missing;
+}
+
+// Come sopra, raggruppato per dominio — comodo per messaggi/pulsanti "completa questo dominio".
+function getMissingByDomain(profile) {
+  const missing = getMissingItems(profile);
+  const byDomain = {};
+  missing.forEach(m => {
+    if (!byDomain[m.domainId]) {
+      const domain = ICF_DOMAINS.find(d => d.id === m.domainId);
+      byDomain[m.domainId] = { domainId: m.domainId, domainLabel: m.domainLabel, icon: domain ? domain.icon : "", items: [] };
+    }
+    byDomain[m.domainId].items.push({ code: m.code, label: m.label });
+  });
+  return Object.values(byDomain);
+}
+
 // Orchestratore: costruisce l'oggetto finale per il pulsante "⬇ JSON",
 // nello schema atteso a valle (vedi questionario_icf_scuola_breve_*.json di riferimento).
 function buildFinalExportData({ anagrafica = {}, profile = {}, bItems = [], sItems = [], fpItems = [] }) {
@@ -257,7 +287,8 @@ function buildFinalExportData({ anagrafica = {}, profile = {}, bItems = [], sIte
 
 const ICFTransform = {
   ICF_DOMAINS, DOMINI_TITOLI, ITEM_DESCRIZIONI, ITEM_DIMENSIONE_PEI, DIMENSIONE_LABELS, SCALA,
-  totalItemCount, buildCodiciIcf, buildDominiIcf, buildSintesiAutomatica, countCompletion, buildFinalExportData
+  totalItemCount, buildCodiciIcf, buildDominiIcf, buildSintesiAutomatica, countCompletion,
+  getMissingItems, getMissingByDomain, buildFinalExportData
 };
 
 // Esposto sia per il caricamento come <script> classico nel browser (window.ICFTransform)

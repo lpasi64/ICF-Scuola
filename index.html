@@ -50,9 +50,12 @@
   .bubble { padding: 11px 15px; border-radius: 16px; font-size: 0.87rem; line-height: 1.6; }
   .msg.ai .bubble { background: white; border: 1px solid var(--border); border-top-left-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
   .msg.user .bubble { background: var(--red); color: white; border-top-right-radius: 4px; }
+  .msg.system .avatar { background: #B45309; color: white; }
+  .msg.system .bubble { background: #FFFBEB; border: 1px solid #FDE68A; color: #78350F; border-top-left-radius: 4px; }
   .hint { margin-top: 8px; font-size: 0.75rem; color: var(--text-muted); padding: 6px 10px; background: var(--bg); border-radius: 8px; border-left: 3px solid var(--green); }
 
   .quick-replies { display: flex; flex-wrap: wrap; gap: 7px; padding: 4px 24px 10px; flex-shrink: 0; }
+  .privacy-notice { padding: 0 24px 6px; font-size: 0.68rem; color: var(--text-muted); flex-shrink: 0; }
   .qr-btn { background: white; border: 1.5px solid var(--red); color: var(--red); border-radius: 20px; padding: 5px 13px; font-size: 0.78rem; font-family: 'Inter',sans-serif; cursor: pointer; transition: all 0.15s; font-weight: 500; }
   .qr-btn:hover { background: var(--red); color: white; }
 
@@ -162,6 +165,7 @@
   <div class="chat-area">
     <div class="messages" id="messages"></div>
     <div class="quick-replies" id="quickReplies"></div>
+    <div class="privacy-notice">🔒 Per la privacy dell'alunno/a: usa un nome di fantasia o una sigla — evita cognomi, indirizzi, nomi di scuole o città.</div>
     <div class="input-area">
       <textarea id="userInput" placeholder="Descrivi la situazione dell'alunno/a…" rows="1" disabled></textarea>
       <select id="voiceSelect" title="Seleziona voce" style="border:1.5px solid var(--border);border-radius:8px;padding:4px 6px;font-size:0.72rem;font-family:Inter,sans-serif;color:var(--text);background:white;max-width:110px;cursor:pointer;outline:none;"></select>
@@ -207,7 +211,7 @@ const PROXY_URL = "https://icf-scuola-production.up.railway.app";
 
 // Elenco domini/item e funzioni di trasformazione: unica fonte in icf-transform.js
 // (condivisa col test automatico test-icf-transform.js).
-const { ICF_DOMAINS, countCompletion, buildFinalExportData } = ICFTransform;
+const { ICF_DOMAINS, countCompletion, getMissingByDomain, buildFinalExportData } = ICFTransform;
 
 // System prompt gestito lato server
 
@@ -236,9 +240,10 @@ async function callProxy(userMessage) {
 
 function addMessage(role, text, hint=null) {
   const c = document.getElementById("messages");
-  const d = document.createElement("div"); d.className=`msg ${role}`;
+  const d = document.createElement("div"); d.className=`msg ${role==="system"?"ai system":role}`;
   const hintHtml = hint ? `<div class="hint">💡 ${hint}</div>` : "";
-  d.innerHTML = `<div class="avatar">${role==="ai"?"AI":"Tu"}</div><div class="bubble">${text}${hintHtml}</div>`;
+  const avatar = role==="ai"?"AI":role==="system"?"⚠":"Tu";
+  d.innerHTML = `<div class="avatar">${avatar}</div><div class="bubble">${text}${hintHtml}</div>`;
   c.appendChild(d); c.scrollTop=c.scrollHeight;
 }
 function showTyping() {
@@ -249,8 +254,17 @@ function showTyping() {
 }
 function removeTyping() { const e=document.getElementById("typing"); if(e) e.remove(); }
 function setQR(opts) {
+  // Ogni opzione è una stringa (etichetta = testo inviato) oppure {label, text}
+  // quando il testo effettivamente inviato all'AI deve essere diverso dall'etichetta visibile
+  // (es. i pulsanti "Completa <dominio>" generati da checkCompletionBeforeClosing).
   const c=document.getElementById("quickReplies"); c.innerHTML="";
-  (opts||[]).forEach(o=>{ const b=document.createElement("button"); b.className="qr-btn"; b.textContent=o; b.onclick=()=>{ document.getElementById("userInput").value=o; sendMessage(); }; c.appendChild(b); });
+  (opts||[]).forEach(o=>{
+    const label = typeof o === "string" ? o : o.label;
+    const text = typeof o === "string" ? o : o.text;
+    const b=document.createElement("button"); b.className="qr-btn"; b.textContent=label;
+    b.onclick=()=>{ document.getElementById("userInput").value=text; sendMessage(); };
+    c.appendChild(b);
+  });
 }
 function updateProgress(n) {
   // n (0-9, riportato dall'AI) è mantenuto solo per compatibilità di chiamata;
@@ -560,6 +574,28 @@ function resetSession() {
   updateProgress(0); renderPanel(); initChat();
 }
 
+// Rete di sicurezza lato client: quando l'AI propone di chiudere il colloquio (quickReplies
+// che include qualcosa tipo "Concludi il colloquio") ma restano item senza valore, non fidarsi
+// del solo autocontrollo del modello — mostra cosa manca e offre di completarlo prima di chiudere.
+function checkCompletionBeforeClosing(r) {
+  const looksLikeClosing = (r.quickReplies||[]).some(q => /conclud/i.test(q));
+  if (!looksLikeClosing) {
+    if (r.quickReplies?.length) setQR(r.quickReplies);
+    return;
+  }
+  const missing = getMissingByDomain(profile);
+  if (!missing.length) { setQR(r.quickReplies); return; }
+  const totalMissing = missing.reduce((n,d)=>n+d.items.length,0);
+  const parts = missing.map(d => `${d.icon} <strong>${d.domainId} · ${d.domainLabel}</strong>: ${d.items.map(i=>i.label).join(", ")}`);
+  addMessage("system", `Prima di concludere: mancano ancora ${totalMissing} item su 47 —<br>${parts.join("<br>")}`);
+  const qrs = missing.map(d => ({
+    label: `Completa: ${d.domainLabel}`,
+    text: `Parliamo ancora di ${d.domainId} · ${d.domainLabel}: mancano ancora ${d.items.map(i=>i.label).join(", ")}.`
+  }));
+  qrs.push({ label: "Concludi comunque", text: "Va bene così, possiamo concludere il colloquio anche con questi elementi mancanti." });
+  setQR(qrs);
+}
+
 async function sendMessage() {
   const input=document.getElementById("userInput");
   const text=input.value.trim(); if(!text) return;
@@ -569,8 +605,8 @@ async function sendMessage() {
   try {
     const r=await callProxy(text); removeTyping();
     addMessage("ai",r.message,r.hint);
-    if(r.quickReplies?.length) setQR(r.quickReplies);
     applyUpdate(r);
+    checkCompletionBeforeClosing(r);
     if(typeof r.progress==="number") updateProgress(r.progress);
     speak(r.message, startMicAfterTTS);
   } catch(err) {
