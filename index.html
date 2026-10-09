@@ -305,6 +305,76 @@
 
   .pei-modal .pei-check { display: flex; align-items: flex-start; gap: 10px; font-size: .8rem; font-weight: 500; color: var(--text); line-height: 1.4; margin: 10px 0 0; }
   .pei-modal .pei-check input[type=checkbox] { width: 18px; height: 18px; flex: none; margin-top: 1px; padding: 0; accent-color: var(--brand); }
+
+  /* ═══ Evidenza ICF in chat, convalida e revisione ═══ */
+  .msg.evidence { align-self: flex-start; max-width: 92%; }
+  .ev-card { margin-left: 39px; background: #F6F9FE; border: 1px solid #D3E1F4; border-left: 4px solid var(--brand-mid); border-radius: 12px; padding: 10px 14px; font-size: .78rem; line-height: 1.5; color: var(--text); animation: fadeSlide .25s ease; }
+  .ev-card summary { cursor: pointer; font-weight: 600; color: var(--brand-dark); list-style: none; }
+  .ev-card summary::-webkit-details-marker { display: none; }
+  .ev-card summary::before { content: "▸ "; }
+  .ev-card[open] summary::before { content: "▾ "; }
+  .ev-quote { margin: 6px 0 4px; padding: 6px 10px; background: #fff; border-radius: 8px; border: 1px dashed #BFD1EA; font-style: italic; color: #34425A; }
+  .ev-list { list-style: none; padding: 0; margin: 4px 0 0; }
+  .ev-list li { padding: 3px 0; border-bottom: 1px solid #E5ECF7; }
+  .ev-list li:last-child { border-bottom: none; }
+  .ev-type { display: inline-block; font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--brand); background: var(--brand-soft); border-radius: 6px; padding: 1px 6px; margin-right: 6px; }
+  .ev-code { font-family: 'Courier New', monospace; font-size: .72rem; color: var(--text-muted); margin-right: 5px; }
+  .ev-tag { font-size: .64rem; font-weight: 600; background: #FFF3CD; color: #7A5A00; border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
+  .ev-note { display: block; font-size: .72rem; color: var(--text-muted); margin-left: 2px; }
+  .ev-foot { margin-top: 6px; font-size: .7rem; color: var(--text-muted); }
+  .src { display: block; font-size: .66rem; color: #6A7A94; font-style: italic; margin-top: 1px; }
+
+  .validate-area { padding: 2px 14px 8px; flex-shrink: 0; }
+  .valid-status { font-size: .72rem; line-height: 1.35; margin-bottom: 6px; padding: 6px 10px; border-radius: 8px; background: #FFF8E1; border: 1px solid #F4E2A6; color: #6B5413; }
+  .valid-status.ok { background: var(--accent-soft); border-color: #BFE6E0; color: #14504A; }
+  .btn-validate { width: 100%; background: #fff; color: var(--brand-dark); border: 2px solid var(--brand); padding: 10px; font-size: .82rem; }
+  .btn-validate:hover { background: var(--brand-soft); }
+  .btn-pei.locked { opacity: .78; }
+
+  .review-backdrop { position: fixed; inset: 0; background: rgba(14,32,60,.55); backdrop-filter: blur(3px); display: none; align-items: flex-start; justify-content: center; z-index: 1600; padding: 16px 12px; overflow-y: auto; }
+  .review-backdrop.show { display: flex; }
+  .review-modal { background: #fff; border-radius: 20px; max-width: 980px; width: 100%; margin: auto; box-shadow: var(--shadow-md); padding: 24px 28px 20px; font-family: 'Inter', sans-serif; }
+  .review-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .review-head h2 { font-family: 'Lora', serif; font-size: 1.45rem; color: var(--brand-dark); }
+  .review-lead { font-size: .86rem; color: var(--text-muted); line-height: 1.5; margin: 6px 0 12px; }
+  .review-legend { background: #F6F9FE; border: 1px solid #D3E1F4; border-radius: 12px; padding: 10px 14px; font-size: .78rem; line-height: 1.55; margin-bottom: 12px; }
+  .review-sum { font-size: .8rem; margin-bottom: 12px; padding: 8px 12px; background: #FFF8E1; border: 1px solid #F4E2A6; border-radius: 10px; color: #6B5413; }
+  .rv-sec { border: 1px solid var(--border); border-radius: 14px; margin-bottom: 12px; overflow: hidden; }
+  .rv-sec > h3 { font-size: .9rem; color: var(--brand-dark); background: #F4F7FC; padding: 9px 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .rv-sec > h3 small { font-weight: 500; color: var(--text-muted); font-size: .72rem; }
+  .rv-body { padding: 8px 12px 10px; }
+  .rv-row { display: grid; grid-template-columns: 62px 1fr 92px 92px 1fr; gap: 8px; align-items: start; padding: 6px 0; border-bottom: 1px solid #EEF2F8; font-size: .78rem; }
+  .rv-row:last-child { border-bottom: none; }
+  .rv-row.hdr { font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  .rv-row .code { font-family: 'Courier New', monospace; font-size: .72rem; color: var(--text-muted); padding-top: 6px; }
+  .rv-row .lbl { padding-top: 5px; line-height: 1.35; }
+  .rv-row.empty .lbl { color: var(--text-muted); }
+  .rv-row.simple { grid-template-columns: 78px 1.2fr 110px 1.4fr 32px; }
+  .rv-row.ana { grid-template-columns: 150px 1fr; align-items: center; }
+  .rv-row input, .rv-row select { width: 100%; padding: 6px 8px; border: 1.5px solid var(--border); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: .78rem; background: #fff; color: var(--text); min-width: 0; }
+  .rv-row input:focus, .rv-row select:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(27,79,143,.14); }
+  .rv-x { background: none; border: 1px solid var(--border); border-radius: 8px; width: 28px; height: 28px; cursor: pointer; color: #B03A3A; font-size: .9rem; }
+  .rv-x:hover { background: #FDECEC; }
+  .rv-add { margin-top: 8px; background: var(--brand-soft); color: var(--brand-dark); border: 1px dashed var(--brand); border-radius: 10px; padding: 7px 12px; font-size: .76rem; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; }
+  .rv-add:hover { background: #D8E6F8; }
+  .rv-empty { font-size: .78rem; color: var(--text-muted); padding: 8px 2px; }
+  .review-foot { position: sticky; bottom: 0; background: #fff; border-top: 1px solid var(--border); margin: 8px -28px -20px; padding: 12px 28px 16px; border-radius: 0 0 20px 20px; }
+  .review-confirm { display: flex; gap: 10px; align-items: flex-start; font-size: .82rem; font-weight: 500; line-height: 1.4; cursor: pointer; margin-bottom: 10px; }
+  .review-confirm input { width: 18px; height: 18px; accent-color: var(--brand); flex: none; margin-top: 1px; }
+  .review-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .review-actions .export-btn { flex: none; padding: 11px 22px; font-size: .84rem; }
+  .review-actions .btn-pei:disabled { opacity: .45; cursor: not-allowed; }
+  @media (max-width: 760px) {
+    .review-modal { padding: 18px 14px 14px; }
+    .rv-row { grid-template-columns: 1fr 1fr; }
+    .rv-row .code, .rv-row .lbl { grid-column: 1 / -1; padding-top: 0; }
+    .rv-row > input[data-f="nota"] { grid-column: 1 / -1; }
+    .rv-row.hdr { display: none; }
+    .rv-row.simple { grid-template-columns: 1fr 1fr; }
+    .rv-row.ana { grid-template-columns: 1fr; }
+    .rv-row.ana .lbl, .rv-row.simple .lbl { grid-column: auto; padding-top: 0; }
+    .review-foot { margin: 8px -14px -14px; padding: 12px 14px; }
+  }
 </style>
 </head>
 <body>
@@ -322,11 +392,11 @@
         <h3>Racconta l'alunno</h3>
         <p>Dialoga con l'assistente e descrivi ciò che osservi in classe: puoi scrivere o usare la dettatura vocale.</p></div>
       <div class="step"><span class="ico" aria-hidden="true">🧩</span><span class="n">2</span>
-        <h3>Il profilo ICF si costruisce</h3>
-        <p>Le tue osservazioni diventano il profilo ICF-Scuola, che puoi seguire e correggere nel pannello a destra.</p></div>
+        <h3>Vedi come diventa ICF</h3>
+        <p>Ogni tua risposta viene tradotta in codici ICF, mostrati in chat insieme alla frase da cui nascono e nel pannello a destra: niente avviene di nascosto.</p></div>
       <div class="step"><span class="ico" aria-hidden="true">📄</span><span class="n">3</span>
-        <h3>Ottieni la bozza di PEI</h3>
-        <p>Genera il documento Word nei modelli ministeriali, con l'esportazione facoltativa per la compilazione nel SIDI.</p></div>
+        <h3>Convalida e genera la bozza</h3>
+        <p>Rivedi il questionario, correggilo o integralo e convalidalo: solo allora genera il PEI in Word, con l'esportazione facoltativa per il SIDI.</p></div>
     </div>
 
     <div class="welcome-box welcome-privacy">
@@ -340,7 +410,6 @@
 
     <div class="welcome-actions">
       <button class="btn-start" onclick="closeWelcome()" id="startBtn">Inizia</button>
-      <button class="btn-link" onclick="openInfo()">Leggi le istruzioni complete</button>
     </div>
   </div>
 </div>
@@ -356,10 +425,12 @@
     <div class="info-sec">
       <h3>🧭 Dall'osservazione alla bozza</h3>
       <ol>
-        <li><strong>Dialogo.</strong> Descrivi l'alunno all'assistente, domanda dopo domanda, anche a voce.</li>
-        <li><strong>Profilo ICF.</strong> Le risposte compilano il questionario ICF-Scuola (domini D1–D9, funzioni, strutture, attività e partecipazione, fattori personali e ambientali). Puoi salvare una bozza nel browser, esportare il file JSON e riprendere il lavoro più tardi.</li>
+        <li><strong>Dialogo.</strong> Premi «Inizia» e descrivi l'alunno all'assistente, domanda dopo domanda, anche a voce.</li>
+        <li><strong>Traduzione in ICF, sotto i tuoi occhi.</strong> Dopo ogni risposta compare in chat una scheda con la tua frase e i codici ICF che ne ricavo (PF e CAP, funzioni e strutture, fattori personali e ambientali), segnalando quelli che l'AI ha dedotto. Lo stesso profilo si vede nel pannello a destra.</li>
+        <li><strong>Revisione e convalida.</strong> Con «Rivedi e convalida il questionario» controlli ogni voce, correggi i valori, aggiungi ciò che manca e togli ciò che non ti convince. Senza la tua convalida il PEI non si genera; se cambi qualcosa dopo, va riconvalidato.</li>
         <li><strong>Bozza di PEI.</strong> Con «Genera PEI» scegli grado scolastico, età e sesso: ricevi il Word con le sezioni del modello ministeriale (D.I. 153/2023).</li>
       </ol>
+      <div class="info-foot"><strong>Come leggere i valori.</strong> PF (performance) è ciò che l'alunno fa nel suo contesto abituale; CAP (capacità) è ciò che saprebbe fare in condizioni standard, senza aiuti. Scala: 0 nessuna difficoltà · 1 lieve · 2 media · 3 grave · 4 completa · 9 non applicabile.</div>
     </div>
 
     <div class="info-sec privacy">
@@ -390,6 +461,25 @@
         <li><strong>Approvazione e firma.</strong> Restano nel SIDI: approvazione del Dirigente Scolastico e firma elettronica dei componenti del GLO.</li>
       </ol>
       <div class="info-foot">Il caricamento nel SIDI lo effettua la scuola con le proprie credenziali: PEI APP non si collega al SIDI. Riferimenti: nota MIM prot. 4316 del 19/10/2023 e guida SIDI «Gestione Alunni con Disabilità – Utente Scuola», v. 4.0.</div>
+    </div>
+  </div>
+</div>
+
+<div class="review-backdrop" id="reviewBackdrop">
+  <div class="review-modal" role="dialog" aria-modal="true" aria-labelledby="reviewTitle">
+    <div class="review-head">
+      <h2 id="reviewTitle">Rivedi e convalida il questionario</h2>
+      <button class="info-close" onclick="closeReview()" aria-label="Chiudi">✕</button>
+    </div>
+    <p class="review-lead">Questo è il profilo ICF costruito dal colloquio. Controlla ogni voce: puoi correggere i valori, aggiungere ciò che manca e togliere ciò che non ti convince. Per ciascuna voce vedi da quale tua frase nasce e se l'AI l'ha dedotta. Solo dopo la tua convalida potrai generare la bozza di PEI.</p>
+    <div class="review-legend"><strong>Come leggere i valori.</strong> <strong>PF</strong> (performance) = ciò che l'alunno fa nel suo contesto abituale. <strong>CAP</strong> (capacità) = ciò che saprebbe fare in condizioni standard, senza aiuti. Scala: 0 nessuna difficoltà · 1 lieve · 2 media · 3 grave · 4 completa · 9 non applicabile.</div>
+    <div id="reviewBody"></div>
+    <div class="review-foot">
+      <label class="review-confirm"><input type="checkbox" id="reviewOk" onchange="reviewToggle()"> Ho riletto il questionario e lo convalido: i dati riflettono ciò che so dell'alunno e del contesto. Resto responsabile dei contenuti che ne derivano.</label>
+      <div class="review-actions">
+        <button class="export-btn btn-reset" onclick="closeReview()">Torna al colloquio</button>
+        <button class="export-btn btn-pei" id="reviewConfirmBtn" onclick="confirmReview()" disabled>Convalida e continua</button>
+      </div>
     </div>
   </div>
 </div>
@@ -450,6 +540,10 @@
       <button class="export-btn btn-json" onclick="exportJSON()">⬇ JSON</button>
       <button class="export-btn btn-reset" onclick="resetSession()">↺ Nuovo</button>
     </div>
+    <div class="validate-area">
+      <div class="valid-status" id="validStatus">Il questionario non è ancora convalidato: prima di generare il PEI va rivisto da te.</div>
+      <button class="export-btn btn-validate" onclick="openReview(false)" id="reviewBtn">✅ Rivedi e convalida il questionario</button>
+    </div>
     <div class="pei-area">
       <button class="export-btn btn-pei" onclick="openPeiForm()">📄 Genera PEI (.docx)</button>
     </div>
@@ -499,7 +593,7 @@
   </div>
 </div>
 
-<script src="icf-transform.js"></script>
+<script src="icf-transform.js?v=20261010"></script>
 <script>
 const PROXY_URL = "https://icf-scuola-production.up.railway.app";
 
@@ -595,6 +689,7 @@ function updateTabBadges() {
   });
 }
 function applyUpdate(r) {
+  marcaEvidenza(r, lastUserText, turno);   // ogni dato registrato porta la frase da cui nasce
   // Anagrafica
   if(r.anagrafica) {
     Object.entries(r.anagrafica).forEach(([k,v])=>{ if(v) anagrafica[k]=v; });
@@ -644,6 +739,8 @@ function applyUpdate(r) {
   updateTabBadges();
   updateProgress(currentProgress);
   renderPanel();
+  updateValidStatus();
+  return riepilogaAggiornamento(r);
 }
 // Etichette anagrafica
 const ANA_LABELS = {nome:"Nome/Sigla",eta:"Età",classe:"Classe",scuola:"Scuola",diagnosi:"Diagnosi/Condizioni",famiglia:"Famiglia",interessi:"Interessi",supporti:"Supporti attivi"};
@@ -688,8 +785,9 @@ function renderPanel() {
           const pf=(it&&it.pf!==undefined&&it.pf!==null&&it.pf!=="")?it.pf:"—";
           const cap=(it&&it.cap!==undefined&&it.cap!==null&&it.cap!=="")?it.cap:"—";
           const inferred=it&&it.fonte==="inferenza";
+          const frase=it&&it.evidenza&&it.evidenza.frase?`<span class="src">«${esc(breve(it.evidenza.frase, 90))}»</span>`:"";
           const nota=it&&it.nota?`<br><span style="font-size:0.67rem;color:var(--text-muted)">${inferred?"💡 ":""}${it.nota}</span>`:"";
-          return `<div class="icf-row"><span class="code">${defIt.code}</span><span class="lbl">${defIt.label}${nota}</span><span class="qual-cell">${pf}</span><span class="qual-cell">${cap}</span></div>`;
+          return `<div class="icf-row"><span class="code">${defIt.code}</span><span class="lbl">${defIt.label}${nota}${frase}</span><span class="qual-cell">${pf}</span><span class="qual-cell">${cap}</span></div>`;
         }).join("")}
       </div>`;
       panel.appendChild(div);
@@ -792,6 +890,7 @@ function loadJSON(event) {
       sItems = data.struttureCorporee || [];
       fpItems = data.fattoriPersonali || [];
       profile = data.profilo || {};
+      chatStarted = true; validatedHash = null;   // un file caricato va rivisto e convalidato
       // Ripristina conversazione se presente
       if (data._history && data._history.length) {
         history = data._history;
@@ -802,7 +901,7 @@ function loadJSON(event) {
       currentProgress = Object.keys(profile).length;
       updateProgress(currentProgress);
       updateTabBadges();
-      renderPanel();
+      renderPanel(); updateValidStatus();
       showToast("📂 Sessione caricata");
     } catch(err) {
       showToast("❌ File non valido");
@@ -820,34 +919,7 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove("show"), 2500);
 }
 
-// Carica bozza automaticamente se presente
-window.addEventListener("load", () => {
-  const draft = localStorage.getItem("icf_draft");
-  if (draft) {
-    try {
-      const data = JSON.parse(draft);
-      const nome = data.anagrafica?.nome || "sessione precedente";
-      // Chiedi se riprendere
-      const resume = confirm("È presente una bozza salvata per " + nome + ". Vuoi riprenderla?");
-      if (resume) {
-        anagrafica = data.anagrafica || {};
-        bItems = data.funzioniCorporee || [];
-        sItems = data.struttureCorporee || [];
-        fpItems = data.fattoriPersonali || [];
-        profile = data.profilo || {};
-        if (data._history) history = data._history;
-        currentProgress = Object.keys(profile).length;
-        updateProgress(currentProgress);
-        updateTabBadges();
-        renderPanel();
-        document.getElementById("messages").innerHTML = "";
-        addMessage("ai", "Ho ripreso la bozza salvata. Possiamo continuare il colloquio.");
-        return; // non avvia initChat
-      }
-    } catch(e) {}
-  }
-});
-
+// La ripresa della bozza salvata avviene dopo il clic su «Inizia» (vedi riprendiBozzaSeEsiste)
 function exportJSON() {
   // Schema allineato al formato atteso a valle (Generatore PEI): meta/allievo/scala/
   // codici_icf/domini_icf/sintesi_automatica — vedi icf-transform.js. Diverso dal formato
@@ -884,6 +956,7 @@ function togglePeiIstituto() {
 let peiIstitutiCache = null;
 
 async function openPeiForm() {
+  if (!isValidated()) { openReview(true); return; }   // il PEI si genera solo da un questionario convalidato
   document.getElementById("peiGrado").value = guessGrado();
   const etaNum = String(anagrafica.eta || "").trim();
   document.getElementById("peiEta").value = /^\d+$/.test(etaNum) ? etaNum : "";
@@ -976,6 +1049,7 @@ async function submitPeiGeneration() {
 function resetSession() {
   if(!confirm("Avviare una nuova compilazione? I dati non salvati andranno persi.")) return;
   history=[]; profile={}; anagrafica={}; fpItems=[]; bItems=[]; sItems=[]; currentProgress=0;
+  chatStarted=false; turno=0; lastUserText=""; validatedHash=null; validatedAt=null;
   document.getElementById("messages").innerHTML="";
   document.getElementById("quickReplies").innerHTML="";
   updateProgress(0); renderPanel(); initChat();
@@ -1007,12 +1081,14 @@ async function sendMessage() {
   const input=document.getElementById("userInput");
   const text=input.value.trim(); if(!text) return;
   input.value=""; input.style.height="auto";
+  lastUserText = text; turno++;
   setQR([]); addMessage("user",text); showTyping();
   document.getElementById("sendBtn").disabled=true;
   try {
     const r=await callProxy(text); removeTyping();
     addMessage("ai",r.message,r.hint);
-    applyUpdate(r);
+    const reg = applyUpdate(r);
+    if (reg.length) addEvidenza(reg, text);
     checkCompletionBeforeClosing(r);
     if(typeof r.progress==="number") updateProgress(r.progress);
     speak(r.message, startMicAfterTTS);
@@ -1138,6 +1214,7 @@ function startMicAfterTTS() {
 
 // AVVIO
 async function initChat() {
+  chatStarted = true;
   showTyping();
   try {
     const r=await callProxy("Inizia la compilazione guidata del Questionario ICF-Scuola rev.2026.");
@@ -1158,7 +1235,7 @@ function boot() {
     document.getElementById("userInput").disabled = false;
     document.getElementById("sendBtn").disabled = false;
     document.getElementById("micBtn").disabled = false;
-    initChat();
+    // il dialogo parte solo dopo il clic su «Inizia» (vedi closeWelcome)
   } catch(e) {
     console.error("Errore avvio:", e);
   }
@@ -1174,23 +1251,232 @@ if (document.readyState === "loading") {
 (function () {
   const logo = document.querySelector('.logo-wrap img'), wl = document.getElementById('welcomeLogo');
   if (logo && wl) wl.src = logo.src;
-  let visto = false;
-  try { visto = sessionStorage.getItem('pei_app_benvenuto') === '1'; } catch (e) { /* senza storage: la schermata si mostra sempre */ }
-  if (visto) document.getElementById('welcome').classList.add('hidden');
-  else setTimeout(() => { const b = document.getElementById('startBtn'); if (b) b.focus(); }, 50);
+  setTimeout(() => { const b = document.getElementById('startBtn'); if (b) b.focus(); }, 50);
 })();
 function closeWelcome() {
   document.getElementById('welcome').classList.add('hidden');
-  try { sessionStorage.setItem('pei_app_benvenuto', '1'); } catch (e) { /* ignora */ }
+  if (!chatStarted && !riprendiBozzaSeEsiste()) initChat();
   const ta = document.getElementById('userInput'); if (ta && !ta.disabled) ta.focus();
 }
 function openInfo() { document.getElementById('infoBackdrop').classList.add('show'); }
 function closeInfo() { document.getElementById('infoBackdrop').classList.remove('show'); }
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
-  if (document.getElementById('infoBackdrop').classList.contains('show')) closeInfo();
-  else if (!document.getElementById('welcome').classList.contains('hidden')) closeWelcome();
+  if (document.getElementById('reviewBackdrop').classList.contains('show')) closeReview();
+  else if (document.getElementById('infoBackdrop').classList.contains('show')) closeInfo();
 });
+
+// ── Evidenza ICF, convalida e revisione del questionario ─────────────────────
+const { marcaEvidenza, riepilogaAggiornamento, impronta, labelForCode } = ICFTransform;
+let chatStarted = false, turno = 0, lastUserText = "", validatedHash = null, validatedAt = null, reviewThenGenerate = false;
+
+function esc(s) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function breve(s, n = 160) { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+function statoAttuale() { return { anagrafica, profile, bItems, sItems, fpItems }; }
+function isValidated() { return validatedHash !== null && validatedHash === impronta(statoAttuale()); }
+function haDati() {
+  return Object.keys(anagrafica).length > 0 || bItems.length > 0 || sItems.length > 0 || fpItems.length > 0
+    || Object.values(profile).some(d => (d.items || []).length > 0 || (d.faItems || []).length > 0);
+}
+function updateValidStatus() {
+  const el = document.getElementById("validStatus"), pei = document.querySelector(".pei-area .btn-pei");
+  if (!el) return;
+  if (isValidated()) {
+    el.className = "valid-status ok";
+    el.textContent = "✅ Questionario convalidato il " + validatedAt.toLocaleDateString("it-IT") + " alle " + validatedAt.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+  } else if (validatedHash !== null) {
+    el.className = "valid-status";
+    el.textContent = "⚠️ Il questionario è cambiato dopo la convalida: va rivisto e convalidato di nuovo.";
+  } else {
+    el.className = "valid-status";
+    el.textContent = "Il questionario non è ancora convalidato: prima di generare il PEI va rivisto da te.";
+  }
+  if (pei) { pei.classList.toggle("locked", !isValidated()); pei.title = isValidated() ? "" : "Prima rivedi e convalida il questionario"; }
+}
+
+// Scheda in chat: come la frase dell'utente è diventata ICF
+function addEvidenza(reg, frase) {
+  const c = document.getElementById("messages");
+  const d = document.createElement("div"); d.className = "msg evidence";
+  const voci = reg.map(v => `<li><span class="ev-type">${esc(v.tipo)}</span>${v.codice ? `<span class="ev-code">${esc(v.codice)}</span>` : ""}${esc(v.testo)}${v.inferito ? '<span class="ev-tag">dedotto dall\'AI</span>' : ""}${v.nota ? `<span class="ev-note">${esc(v.nota)}</span>` : ""}</li>`).join("");
+  d.innerHTML = `<details class="ev-card" open><summary>🔎 Come la tua risposta diventa ICF (${reg.length} ${reg.length === 1 ? "voce" : "voci"})</summary>`
+    + (frase ? `<div class="ev-quote">«${esc(breve(frase, 220))}»</div>` : "")
+    + `<ul class="ev-list">${voci}</ul>`
+    + `<div class="ev-foot">PF = ciò che fa nel contesto abituale · CAP = ciò che saprebbe fare in condizioni standard, senza aiuti. Se qualcosa non ti torna, correggilo nel pannello a destra o nella revisione finale.</div></details>`;
+  c.appendChild(d); c.scrollTop = c.scrollHeight;
+}
+
+// ── Revisione e convalida ────────────────────────────────────────────────────
+const SCALA_OPT = [["", "—"], ["0", "0 · nessuna"], ["1", "1 · lieve"], ["2", "2 · media"], ["3", "3 · grave"], ["4", "4 · completa"], ["9", "9 · non applicabile"]];
+const EFFETTO_OPT = [["", "—"], ["+4", "+4 facilitatore completo"], ["+3", "+3 facilitatore rilevante"], ["+2", "+2 facilitatore medio"], ["+1", "+1 facilitatore lieve"], ["0", "0 nessun effetto"], ["1", "1 barriera lieve"], ["2", "2 barriera media"], ["3", "3 barriera rilevante"], ["4", "4 barriera completa"]];
+function selHtml(attrs, val, opts) {
+  const v = String(val ?? "");
+  const lista = opts.some(o => o[0] === v) ? opts : [...opts, [v, v]];
+  return `<select ${attrs}>${lista.map(([k, l]) => `<option value="${esc(k)}"${k === v ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
+}
+function fonteHtml(it) {
+  if (!it) return '<span class="src">non valutato</span>';
+  if (it.fonte === "insegnante") return '<span class="src">✏️ inserito o corretto da te</span>';
+  const f = it.evidenza && it.evidenza.frase;
+  const base = it.fonte === "inferenza" ? "💡 dedotto dall'AI" : "dalla tua risposta";
+  return f ? `<span class="src">${base}: «${esc(breve(f, 130))}»</span>` : `<span class="src">${base} (bozza precedente)</span>`;
+}
+
+function renderReview() {
+  const body = document.getElementById("reviewBody");
+  let h = "";
+  const { filled, total } = countCompletion(profile);
+  h += `<div class="review-sum">Attività e partecipazione: <strong>${filled} voci su ${total}</strong> hanno un valore. Le altre restano «non valutate» e non vengono considerate difficoltà: puoi lasciarle così o completarle ora.</div>`;
+
+  // Dati del caso
+  const chiavi = [...Object.keys(ANA_LABELS), ...Object.keys(anagrafica).filter(k => !(k in ANA_LABELS))];
+  h += `<div class="rv-sec"><h3>👤 Dati del caso <small>modificabili</small></h3><div class="rv-body">`
+    + chiavi.map(k => `<div class="rv-row ana"><span class="lbl">${esc(ANA_LABELS[k] || k)}</span><input type="text" data-k="ana" data-key="${esc(k)}" value="${esc(anagrafica[k] || "")}" placeholder="non indicato"></div>`).join("")
+    + `</div></div>`;
+
+  // Attività e partecipazione
+  ICF_DOMAINS.forEach(dom => {
+    const data = profile[dom.id] || { items: [], faItems: [] };
+    const c = countCompletion(profile).perDomain[dom.id];
+    h += `<div class="rv-sec ${dom.cls}"><h3>${dom.icon} ${dom.id} · ${esc(dom.label)} <small>${c.filled}/${c.total} valutate</small></h3><div class="rv-body">`
+      + `<div class="rv-row hdr"><span>Codice</span><span>Voce e origine</span><span>PF</span><span>CAP</span><span>Nota</span></div>`
+      + dom.items.map(def => {
+        const it = data.items.find(x => x.code === def.code);
+        const vuota = !it || ((it.pf === null || it.pf === undefined || it.pf === "") && (it.cap === null || it.cap === undefined || it.cap === ""));
+        return `<div class="rv-row${vuota ? " empty" : ""}"><span class="code">${def.code}</span><span class="lbl">${esc(def.label)}${fonteHtml(it)}${it && it.nota && it.fonte !== "insegnante" ? `<span class="src">nota AI: ${esc(breve(it.nota, 140))}</span>` : ""}</span>`
+          + selHtml(`data-k="ap" data-dom="${dom.id}" data-code="${def.code}" data-f="pf" aria-label="PF ${def.code}"`, it ? it.pf : "", SCALA_OPT)
+          + selHtml(`data-k="ap" data-dom="${dom.id}" data-code="${def.code}" data-f="cap" aria-label="CAP ${def.code}"`, it ? it.cap : "", SCALA_OPT)
+          + `<input type="text" data-k="ap" data-dom="${dom.id}" data-code="${def.code}" data-f="nota" value="${esc(it ? (it.fonte === "insegnante" ? it.nota : "") : "")}" placeholder="tua nota (facoltativa)"></div>`;
+      }).join("")
+      + `</div></div>`;
+  });
+
+  // Funzioni e strutture corporee, fattori personali
+  const lista = (titolo, icona, kind, arr, campi) => {
+    h += `<div class="rv-sec"><h3>${icona} ${titolo} <small>${arr.length} voci</small></h3><div class="rv-body">`;
+    if (!arr.length) h += `<div class="rv-empty">Nessuna voce. Puoi aggiungerne una se serve.</div>`;
+    arr.forEach((x, i) => {
+      h += `<div class="rv-row simple"><input type="text" data-k="${kind}" data-i="${i}" data-f="code" value="${esc(x.code || "")}" placeholder="codice" aria-label="codice">`
+        + `<input type="text" data-k="${kind}" data-i="${i}" data-f="label" value="${esc(x.label || "")}" placeholder="descrizione" aria-label="descrizione">`
+        + (campi === "qual" ? selHtml(`data-k="${kind}" data-i="${i}" data-f="qualifier" aria-label="qualificatore"`, x.qualifier, SCALA_OPT) : `<span></span>`)
+        + `<input type="text" data-k="${kind}" data-i="${i}" data-f="${campi === "qual" ? "note" : "note"}" value="${esc(x.note || "")}" placeholder="nota" aria-label="nota">`
+        + `<button class="rv-x" data-act="del" data-k="${kind}" data-i="${i}" title="Togli questa voce" aria-label="Togli">✕</button></div>`;
+      if (x.evidenza || x.fonte) h += `<div class="rv-row simple" style="padding-top:0;border:none"><span></span><span>${fonteHtml(x)}</span></div>`;
+    });
+    h += `<button class="rv-add" data-act="add" data-k="${kind}">＋ Aggiungi</button></div></div>`;
+  };
+  lista("Funzioni corporee (b)", "⚡", "b", bItems, "qual");
+  lista("Strutture corporee (s)", "🔬", "s", sItems, "qual");
+  lista("Fattori personali (i)", "🧬", "fp", fpItems, "nota");
+
+  // Fattori ambientali
+  const fa = [];
+  Object.entries(profile).forEach(([dom, d]) => (d.faItems || []).forEach((f, i) => fa.push({ dom, i, f })));
+  h += `<div class="rv-sec"><h3>🌍 Fattori ambientali (e) <small>${fa.length} voci</small></h3><div class="rv-body">`;
+  if (!fa.length) h += `<div class="rv-empty">Nessun fattore ambientale rilevato.</div>`;
+  fa.forEach(({ dom, i, f }) => {
+    h += `<div class="rv-row simple"><input type="text" data-k="fa" data-dom="${dom}" data-i="${i}" data-f="code" value="${esc(f.code || "")}" aria-label="codice">`
+      + `<input type="text" data-k="fa" data-dom="${dom}" data-i="${i}" data-f="label" value="${esc(f.label || "")}" aria-label="descrizione">`
+      + selHtml(`data-k="fa" data-dom="${dom}" data-i="${i}" data-f="effect" aria-label="effetto"`, f.effect, EFFETTO_OPT)
+      + `<span>${fonteHtml(f)}</span>`
+      + `<button class="rv-x" data-act="del" data-k="fa" data-dom="${dom}" data-i="${i}" title="Togli questa voce" aria-label="Togli">✕</button></div>`;
+  });
+  h += `<button class="rv-add" data-act="add" data-k="fa">＋ Aggiungi</button></div></div>`;
+
+  body.innerHTML = h;
+}
+
+function revApply(el) {
+  const k = el.dataset.k, f = el.dataset.f, v = el.value;
+  if (k === "ana") {
+    const t = v.trim(); if (t) anagrafica[el.dataset.key] = t; else delete anagrafica[el.dataset.key];
+  } else if (k === "ap") {
+    const dom = el.dataset.dom, code = el.dataset.code;
+    if (!profile[dom]) profile[dom] = { items: [], faItems: [] };
+    const arr = profile[dom].items;
+    let it = arr.find(x => x.code === code);
+    if (!it) { it = { code, label: labelForCode(code), pf: null, cap: null, nota: "" }; arr.push(it); }
+    if (f === "nota") it.nota = v; else it[f] = v === "" ? null : Number(v);
+    it.fonte = "insegnante"; it.evidenza = { frase: "Inserito o corretto da te nella revisione", turno: 0 };
+    const vuoto = (x) => x === null || x === undefined || x === "";
+    if (vuoto(it.pf) && vuoto(it.cap) && !(it.nota || "").trim()) arr.splice(arr.indexOf(it), 1);
+  } else if (k === "b" || k === "s" || k === "fp") {
+    const arr = k === "b" ? bItems : k === "s" ? sItems : fpItems; const it = arr[Number(el.dataset.i)]; if (!it) return;
+    it[f] = (f === "qualifier") ? (v === "" ? "" : Number(v)) : v;
+    it.fonte = "insegnante";
+  } else if (k === "fa") {
+    const it = (profile[el.dataset.dom] || { faItems: [] }).faItems[Number(el.dataset.i)]; if (!it) return;
+    it[f] = v; it.fonte = "insegnante";
+  }
+  updateTabBadges(); updateProgress(currentProgress); renderPanel(); updateValidStatus();
+  const resumo = document.querySelector(".review-sum");
+  if (resumo) { const { filled, total } = countCompletion(profile); resumo.innerHTML = `Attività e partecipazione: <strong>${filled} voci su ${total}</strong> hanno un valore. Le altre restano «non valutate» e non vengono considerate difficoltà: puoi lasciarle così o completarle ora.`; }
+}
+function revAction(btn) {
+  const k = btn.dataset.k, act = btn.dataset.act;
+  if (k === "b" || k === "s" || k === "fp") {
+    const arr = k === "b" ? bItems : k === "s" ? sItems : fpItems;
+    if (act === "del") arr.splice(Number(btn.dataset.i), 1);
+    else arr.push(k === "fp" ? { code: "", label: "", note: "", fonte: "insegnante" } : { code: "", label: "", qualifier: "", note: "", fonte: "insegnante" });
+  } else if (k === "fa") {
+    if (act === "del") { (profile[btn.dataset.dom].faItems).splice(Number(btn.dataset.i), 1); }
+    else {
+      if (!profile.D1) profile.D1 = { items: [], faItems: [] };
+      profile.D1.faItems.push({ code: "", label: "", effect: "", fonte: "insegnante" });
+    }
+  }
+  updateTabBadges(); renderPanel(); updateValidStatus(); renderReview();
+}
+
+function openReview(thenGenerate) {
+  reviewThenGenerate = !!thenGenerate;
+  const bd = document.getElementById("reviewBackdrop");
+  if (!haDati()) {
+    document.getElementById("reviewBody").innerHTML = '<div class="review-sum">Non c\'è ancora nulla da convalidare: prosegui il colloquio e racconta l\'alunno. Quando il profilo si sarà riempito potrai rivederlo qui.</div>';
+    document.getElementById("reviewOk").checked = false; document.getElementById("reviewOk").disabled = true;
+    document.getElementById("reviewConfirmBtn").disabled = true;
+  } else {
+    renderReview();
+    const ok = document.getElementById("reviewOk"); ok.disabled = false; ok.checked = false;
+    document.getElementById("reviewConfirmBtn").disabled = true;
+  }
+  bd.classList.add("show"); bd.scrollTop = 0;
+}
+function closeReview() { document.getElementById("reviewBackdrop").classList.remove("show"); }
+function reviewToggle() { document.getElementById("reviewConfirmBtn").disabled = !document.getElementById("reviewOk").checked; }
+function confirmReview() {
+  // le voci senza codice (aggiunte e lasciate vuote) non entrano nel questionario
+  bItems = bItems.filter(x => (x.code || "").trim()); sItems = sItems.filter(x => (x.code || "").trim()); fpItems = fpItems.filter(x => (x.code || "").trim());
+  Object.values(profile).forEach(d => { d.faItems = (d.faItems || []).filter(x => (x.code || "").trim()); });
+  updateTabBadges(); renderPanel();
+  validatedHash = impronta(statoAttuale()); validatedAt = new Date();
+  closeReview(); updateValidStatus(); showToast("✅ Questionario convalidato");
+  if (reviewThenGenerate) { reviewThenGenerate = false; openPeiForm(); }
+}
+document.getElementById("reviewBody").addEventListener("input", (e) => { if (e.target.matches("input[data-k]")) revApply(e.target); });
+document.getElementById("reviewBody").addEventListener("change", (e) => { if (e.target.matches("select[data-k]")) revApply(e.target); });
+document.getElementById("reviewBody").addEventListener("click", (e) => { const b = e.target.closest("[data-act]"); if (b) revAction(b); });
+updateValidStatus();
+
+// ── Avvio del dialogo: solo dopo il clic su «Inizia» ─────────────────────────
+function riprendiBozzaSeEsiste() {
+  let draft = null;
+  try { draft = localStorage.getItem("icf_draft"); } catch (e) { return false; }
+  if (!draft) return false;
+  try {
+    const data = JSON.parse(draft);
+    const nome = (data.anagrafica && data.anagrafica.nome) || "sessione precedente";
+    if (!confirm("È presente una bozza salvata per " + nome + ". Vuoi riprenderla?")) return false;
+    anagrafica = data.anagrafica || {}; bItems = data.funzioniCorporee || []; sItems = data.struttureCorporee || [];
+    fpItems = data.fattoriPersonali || []; profile = data.profilo || {};
+    if (data._history) history = data._history;
+    currentProgress = Object.keys(profile).length; chatStarted = true;
+    updateProgress(currentProgress); updateTabBadges(); renderPanel(); updateValidStatus();
+    document.getElementById("messages").innerHTML = "";
+    addMessage("ai", "Ho ripreso la bozza salvata. Possiamo continuare il colloquio.");
+    return true;
+  } catch (e) { return false; }
+}
 </script>
 </body>
 </html>
