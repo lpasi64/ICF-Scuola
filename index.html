@@ -251,6 +251,7 @@
           <option value="F">F</option>
         </select>
 
+        <label class="pei-check"><input type="checkbox" id="peiSidi"> Aggiungi l'esportazione per SIDI (testi da copiare e incollare nei campi del portale)</label>
         <label class="pei-check"><input type="checkbox" id="peiAnonimo" onchange="document.getElementById('peiAnonimoHint').style.display=this.checked?'block':'none'"> Versione anonimizzata (senza nome e cognome dell'alunno), per il caricamento in SIDI</label>
         <p class="pei-modal-hint" id="peiAnonimoHint" style="display:none">Per il SIDI serve un PDF: apri il file in Word e usa File → Salva con nome → PDF. Poi caricalo da Gestione Alunni con Disabilità → Gestione Fascicolo → Certificazioni. Controlla che il testo non contenga altri dati identificativi (nomi di familiari, della scuola, di docenti).</p>
 
@@ -654,6 +655,7 @@ async function openPeiForm() {
   document.getElementById("peiEta").value = /^\d+$/.test(etaNum) ? etaNum : "";
   document.getElementById("peiSesso").value = "";
   document.getElementById("peiAnonimo").checked = false;
+  document.getElementById("peiSidi").checked = false;
   document.getElementById("peiAnonimoHint").style.display = "none";
   document.getElementById("peiModalStatus").textContent = "";
   togglePeiIstituto();
@@ -682,6 +684,7 @@ async function submitPeiGeneration() {
   const eta = document.getElementById("peiEta").value.trim();
   const sesso = document.getElementById("peiSesso").value;
   const anonimo = document.getElementById("peiAnonimo").checked;
+  const sidi = document.getElementById("peiSidi").checked;
   const statusEl = document.getElementById("peiModalStatus");
   const btn = document.querySelector("#peiModalBackdrop .btn-pei");
 
@@ -696,22 +699,37 @@ async function submitPeiGeneration() {
     const res = await fetch(`${PROXY_URL}/genera-pei`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eta, sesso, grado, istituto, icf, anonimo })
+      body: JSON.stringify({ eta, sesso, grado, istituto, icf, anonimo, sidi })
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: "Errore sconosciuto" }));
       throw new Error(err.error || `HTTP ${res.status}`);
     }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    const cd = res.headers.get("Content-Disposition") || "";
-    const fnMatch = cd.match(/filename="([^"]+)"/);
-    a.download = fnMatch ? fnMatch[1] : `PEI_${grado}_${new Date().getFullYear()}.docx`;
-    a.href = url;
-    a.click();
-    URL.revokeObjectURL(url);
-    statusEl.textContent = "✅ Documento generato e scaricato.";
+    const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    const scarica = (blob, nome) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.download = nome;
+      a.href = url;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+    if ((res.headers.get("Content-Type") || "").includes("application/json")) {
+      // PEI + esportazione per SIDI: due file nella stessa risposta
+      const data = await res.json();
+      for (const f of data.files || []) {
+        const bytes = Uint8Array.from(atob(f.base64), c => c.charCodeAt(0));
+        scarica(new Blob([bytes], { type: DOCX_MIME }), f.nome);
+        await new Promise(r => setTimeout(r, 400));
+      }
+      statusEl.textContent = "✅ Generati e scaricati il PEI e l'esportazione per SIDI (se il browser lo chiede, consenti i download multipli).";
+    } else {
+      const blob = await res.blob();
+      const cd = res.headers.get("Content-Disposition") || "";
+      const fnMatch = cd.match(/filename="([^"]+)"/);
+      scarica(blob, fnMatch ? fnMatch[1] : `PEI_${grado}_${new Date().getFullYear()}.docx`);
+      statusEl.textContent = "✅ Documento generato e scaricato.";
+    }
     setTimeout(closePeiModal, 1500);
   } catch (err) {
     statusEl.textContent = "❌ " + err.message;
