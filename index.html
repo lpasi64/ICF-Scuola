@@ -375,6 +375,18 @@
     .rv-row.ana .lbl, .rv-row.simple .lbl { grid-column: auto; padding-top: 0; }
     .review-foot { margin: 8px -14px -14px; padding: 12px 14px; }
   }
+  .voice-btn { background: var(--bg); color: var(--brand-dark); border: 1.5px solid var(--border); border-radius: 10px; height: 40px; padding: 0 12px; font-size: .74rem; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; flex-shrink: 0; transition: all .15s; }
+  .voice-btn:hover { background: var(--brand-soft); border-color: var(--brand); }
+  .voice-pop { display: none; position: fixed; left: 24px; bottom: 92px; width: 330px; max-width: calc(100vw - 24px); z-index: 1200; background: #fff; border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-md); padding: 14px 16px 12px; font-family: 'Inter', sans-serif; }
+  .voice-pop.show { display: block; }
+  .voice-pop h4 { font-size: .9rem; color: var(--brand-dark); margin-bottom: 8px; }
+  .vp-row { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: center; margin-bottom: 8px; font-size: .76rem; color: var(--text-muted); font-weight: 600; }
+  .vp-row select { width: 100%; padding: 7px 8px; border: 1.5px solid var(--border); border-radius: 8px; font-size: .78rem; font-family: 'Inter', sans-serif; background: #fff; color: var(--text); }
+  .vp-tip { font-size: .7rem; line-height: 1.45; color: #5A4A1B; background: #FFF8E1; border: 1px solid #F4E2A6; border-radius: 10px; padding: 7px 10px; margin: 4px 0 10px; }
+  .vp-tip.ok { color: #14504A; background: var(--accent-soft); border-color: #BFE6E0; }
+  .vp-actions { display: flex; gap: 8px; }
+  .vp-actions .export-btn { flex: 1; padding: 8px 6px; }
+  @media (max-width: 700px) { .voice-pop { left: 12px; right: 12px; bottom: 150px; width: auto; } }
 </style>
 </head>
 <body>
@@ -401,7 +413,7 @@
 
     <div class="welcome-box welcome-privacy">
       <strong>🔒 I tuoi dati</strong>
-      PEI APP non ha archivi né account e non conserva i dati sui propri server: il lavoro in corso resta nel tuo browser e i documenti vengono scaricati sul tuo computer. Per elaborare le risposte e scrivere la bozza, però, i testi inseriti sono inviati in modo temporaneo ai servizi di intelligenza artificiale (DeepSeek e GLM per il dialogo, Claude di Anthropic per la bozza di PEI), che li trattano secondo le proprie condizioni. Per questo usa un nome di fantasia o una sigla ed evita cognomi, indirizzi e nomi di scuole o città.
+      PEI APP non ha archivi né account e non conserva i dati sui propri server: il lavoro in corso resta nel tuo browser e i documenti vengono scaricati sul tuo computer. Per elaborare le risposte e scrivere la bozza, però, i testi inseriti sono inviati in modo temporaneo ai servizi di intelligenza artificiale (DeepSeek e GLM per il dialogo, Claude di Anthropic per la bozza di PEI; Google per la voce online, che riceve solo i messaggi dell'assistente da leggere ed è disattivabile), che li trattano secondo le proprie condizioni. Per questo usa un nome di fantasia o una sigla ed evita cognomi, indirizzi e nomi di scuole o città.
     </div>
     <div class="welcome-box welcome-teacher">
       <strong>👩‍🏫 Il ruolo dell'insegnante</strong>
@@ -438,7 +450,7 @@
       <ul>
         <li><strong>Nessun archivio.</strong> PEI APP non ha account né database e non conserva dati sui propri server.</li>
         <li><strong>Sul tuo computer.</strong> La bozza di lavoro è salvata solo nel tuo browser e i documenti (Word, JSON) si scaricano sul tuo dispositivo.</li>
-        <li><strong>Elaborazione con l'intelligenza artificiale.</strong> Per rispondere e scrivere la bozza, i testi inseriti passano temporaneamente dal servizio di PEI APP ai fornitori di IA: DeepSeek (con GLM di riserva) per il dialogo, Claude di Anthropic per la bozza di PEI. Questi fornitori trattano i dati secondo le proprie condizioni.</li>
+        <li><strong>Elaborazione con l'intelligenza artificiale.</strong> Per rispondere e scrivere la bozza, i testi inseriti passano temporaneamente dal servizio di PEI APP ai fornitori di IA: DeepSeek (con GLM di riserva) per il dialogo, Claude di Anthropic per la bozza di PEI e, se attiva, Google Cloud Text-to-Speech per la voce naturale (riceve solo i messaggi dell'assistente da leggere e si disattiva dal pulsante «Voce»). Questi fornitori trattano i dati secondo le proprie condizioni.</li>
         <li><strong>Cosa ti chiediamo.</strong> Usa un nome di fantasia o una sigla; evita cognomi, indirizzi, nomi di scuole, città e di familiari. L'opzione «Versione anonimizzata» toglie dal documento finale il nome inserito, ma non può riconoscere altri dati identificativi scritti nel testo.</li>
       </ul>
     </div>
@@ -484,6 +496,16 @@
   </div>
 </div>
 
+<div class="voice-pop" id="voicePop" role="dialog" aria-label="Voce dell'assistente">
+  <h4>🎙️ Voce dell'assistente</h4>
+  <div class="vp-row" id="voiceEngineRow" style="display:none"><label for="voiceEngine">Tipo</label><select id="voiceEngine" onchange="cambiaMotore()"><option value="google">Voce naturale online (Google)</option><option value="browser">Voce del browser</option></select></div>
+  <p class="vp-tip ok" id="voiceGoogleNote" style="display:none">Con la voce online, i messaggi dell'assistente da leggere vengono inviati a Google Cloud Text-to-Speech per generare l'audio. PEI APP non li conserva.</p>
+  <div class="vp-row"><label for="voiceSelect">Voce</label><select id="voiceSelect" onchange="cambiaVoce()"></select></div>
+  <div class="vp-row"><label for="voiceRate">Velocità</label><select id="voiceRate" onchange="cambiaVelocita()"><option value="0.88">Lenta</option><option value="1" selected>Normale</option><option value="1.12">Veloce</option></select></div>
+  <p class="vp-tip" id="voiceTip"></p>
+  <div class="vp-actions"><button class="export-btn btn-reset" onclick="provaVoce()">▶ Ascolta un esempio</button><button class="export-btn btn-pei" onclick="toggleVoicePanel()">Chiudi</button></div>
+</div>
+
 <button class="fab-pei" onclick="openPeiForm()" aria-label="Genera PEI">📄 Genera PEI</button>
 
 
@@ -508,7 +530,7 @@
     <div class="privacy-notice">🔒 L'app non archivia i dati; i testi sono elaborati da servizi di intelligenza artificiale. Usa un nome di fantasia o una sigla: evita cognomi, indirizzi, nomi di scuole o città. <a onclick="openInfo()">Maggiori informazioni</a></div>
     <div class="input-area">
       <textarea id="userInput" placeholder="Descrivi la situazione dell'alunno/a…" rows="1" disabled></textarea>
-      <select id="voiceSelect" title="Seleziona voce" style="border:1.5px solid var(--border);border-radius:8px;padding:4px 6px;font-size:0.72rem;font-family:Inter,sans-serif;color:var(--text);background:white;max-width:110px;cursor:pointer;outline:none;"></select>
+      <button class="voice-btn" onclick="toggleVoicePanel()" id="voiceBtn" title="Impostazioni della voce" aria-label="Impostazioni della voce">🎙️ Voce</button>
       <button class="tts-toggle" onclick="toggleTTS()" id="ttsBtn" title="Voce AI on/off">🔊</button>
       <button class="mic-btn" onclick="toggleDictation()" id="micBtn" disabled title="Dettatura vocale">🎤</button>
       <button class="send-btn" onclick="sendMessage()" id="sendBtn" disabled>
@@ -594,6 +616,7 @@
 </div>
 
 <script src="icf-transform.js?v=20261010"></script>
+<script src="voce.js?v=20261010"></script>
 <script>
 const PROXY_URL = "https://icf-scuola-production.up.railway.app";
 
@@ -1104,83 +1127,165 @@ document.getElementById("userInput").addEventListener("input",function(){ this.s
 // ── TTS (Text-to-Speech) ────────────────────────────────────────────────────
 let ttsEnabled = true;
 let ttsAutoMic = true; // dopo il TTS, riattiva il microfono automaticamente
+let ttsSessione = 0;
+let ttsRemoto = { attivo: false, voci: [] };   // voce neurale del server (Google WaveNet), se configurata
+let riproduzione = null;                        // audio in riproduzione: { audio, risolvi }    // identifica la lettura in corso: una nuova lettura (o il microfono) interrompe le frasi ancora in coda
 
+// Ferma subito la lettura in corso (anche le frasi ancora in coda)
+function fermaVoce() {
+  ttsSessione++;
+  if (riproduzione) { riproduzione.audio.pause(); riproduzione.risolvi(); riproduzione = null; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  const b = document.getElementById("ttsBtn"); if (b) b.classList.remove("speaking");
+}
 function toggleTTS() {
   ttsEnabled = !ttsEnabled;
   const btn = document.getElementById("ttsBtn");
   btn.classList.toggle("off", !ttsEnabled);
   btn.textContent = ttsEnabled ? "🔊" : "🔇";
-  if (!ttsEnabled) window.speechSynthesis.cancel();
+  if (!ttsEnabled) fermaVoce();
 }
+function leggiImpostazioniVoce() { try { return JSON.parse(localStorage.getItem("pei_voce") || "{}"); } catch (e) { return {}; } }
+function salvaImpostazioniVoce(o) { try { localStorage.setItem("pei_voce", JSON.stringify({ ...leggiImpostazioniVoce(), ...o })); } catch (e) { /* senza storage: valgono per questa sessione */ } }
+
+// La lettura è a frasi, con respiri tra una e l'altra: più naturale di un unico blocco, e senza i blocchi dei testi lunghi
+function usaGoogle() { return ttsRemoto.attivo && ttsRemoto.voci.length > 0 && ((document.getElementById("voiceEngine") || {}).value !== "browser"); }
 
 function speak(text, onEnd) {
-  if (!ttsEnabled || !window.speechSynthesis) { if(onEnd) onEnd(); return; }
-  window.speechSynthesis.cancel();
-  // Pulisce il testo da emoji e markup
-  const clean = text.replace(/[^\p{L}\p{N}\s,.!?;:()\-]/gu, " ").replace(/\s+/g, " ").trim();
-  if (!clean) { if(onEnd) onEnd(); return; }
+  if (!ttsEnabled) { if (onEnd) onEnd(); return; }
+  if (usaGoogle()) return parlaGoogle(text, onEnd);
+  return parlaBrowser(text, onEnd);
+}
 
-  const utter = new SpeechSynthesisUtterance(clean);
-  utter.lang = "it-IT";
-  utter.rate = 0.95;
-  utter.pitch = 1;
+function riproduci(base64, sid) {
+  return new Promise((risolvi) => {
+    if (sid !== ttsSessione) { risolvi(); return; }
+    const audio = new Audio("data:audio/mpeg;base64," + base64);
+    riproduzione = { audio, risolvi };
+    const fine = () => { if (riproduzione && riproduzione.audio === audio) riproduzione = null; risolvi(); };
+    audio.onended = fine; audio.onerror = fine;
+    audio.play().catch(fine);
+  });
+}
 
-  // Prova a usare una voce italiana
-  // Seleziona la voce italiana migliore disponibile
-  const voices = window.speechSynthesis.getVoices();
-  // Usa la voce selezionata dall'utente, o la migliore disponibile
+// Voce neurale: un messaggio = poche richieste al server; la successiva si prepara mentre la precedente suona
+async function parlaGoogle(text, onEnd) {
+  fermaVoce();
+  const sid = ++ttsSessione;
+  const frasi = VoceTTS.dividiInFrasi(VoceTTS.preparaTestoVocale(text));
+  if (!frasi.length) { if (onEnd) onEnd(); return; }
+  const gruppi = VoceTTS.raggruppaFrasi(frasi, 1500);
+  const voce = (document.getElementById("voiceSelect") || {}).value || undefined;
+  const velocita = parseFloat((document.getElementById("voiceRate") || {}).value) || 1;
+  const btn = document.getElementById("ttsBtn");
+  const scarica = (g) => fetch(PROXY_URL + "/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ frasi: g, voce, velocita }) })
+    .then(r => { if (!r.ok) throw new Error("tts " + r.status); return r.json(); });
+  btn.classList.add("speaking");
+  let partita = false;
+  try {
+    let prossimo = scarica(gruppi[0]);
+    for (let i = 0; i < gruppi.length; i++) {
+      const dati = await prossimo;
+      if (sid !== ttsSessione) return;
+      if (i + 1 < gruppi.length) prossimo = scarica(gruppi[i + 1]);
+      partita = true;
+      await riproduci(dati.audio, sid);
+      if (sid !== ttsSessione) return;
+    }
+    btn.classList.remove("speaking"); if (onEnd) onEnd();
+  } catch (e) {
+    if (sid !== ttsSessione) return;
+    console.warn("Voce online non disponibile:", e.message);
+    if (!partita) { showToast("Voce online non disponibile: uso la voce del browser"); parlaBrowser(text, onEnd); }
+    else { btn.classList.remove("speaking"); if (onEnd) onEnd(); }
+  }
+}
+
+function parlaBrowser(text, onEnd) {
+  if (!window.speechSynthesis) { if (onEnd) onEnd(); return; }
+  fermaVoce();
+  const sid = ++ttsSessione;
+  const frasi = VoceTTS.dividiInFrasi(VoceTTS.preparaTestoVocale(text));
+  if (!frasi.length) { if (onEnd) onEnd(); return; }
   const sel = document.getElementById("voiceSelect");
-  const selectedName = sel?.value;
-  let itVoice = voices.find(v => v.name === selectedName);
-  if (!itVoice) itVoice = voices.find(v => v.lang.startsWith("it"));
-  if (itVoice) utter.voice = itVoice;
-  utter.rate = 0.9;
-  utter.pitch = 1.05;
-
+  const { voce } = VoceTTS.scegliVoce(window.speechSynthesis.getVoices(), (sel && sel.value) || leggiImpostazioniVoce().nome);
+  const rate = parseFloat((document.getElementById("voiceRate") || {}).value) || 1;
   const btn = document.getElementById("ttsBtn");
   btn.classList.add("speaking");
-
-  utter.onend = () => {
-    btn.classList.remove("speaking");
-    if (onEnd) onEnd();
+  let i = 0;
+  const finito = () => { if (sid !== ttsSessione) return; btn.classList.remove("speaking"); if (onEnd) onEnd(); };
+  const prossima = () => {
+    if (sid !== ttsSessione) return;                      // interrotta da una nuova lettura o dal microfono
+    if (i >= frasi.length) { finito(); return; }
+    const f = frasi[i++];
+    const u = new SpeechSynthesisUtterance(f.testo);
+    u.lang = "it-IT"; u.rate = rate; u.pitch = 1;
+    if (voce) u.voice = voce;
+    u.onend = () => setTimeout(prossima, f.pausa);
+    u.onerror = (e) => { if (e && (e.error === "interrupted" || e.error === "canceled")) return; setTimeout(prossima, 0); };
+    window.speechSynthesis.speak(u);
   };
-  utter.onerror = () => {
-    btn.classList.remove("speaking");
-    if (onEnd) onEnd();
-  };
-  window.speechSynthesis.speak(utter);
+  prossima();
 }
 
-// Carica e popola il selettore voci
+// Elenco delle voci italiane, le più naturali per prime (★), senza duplicati quando il browser le ricarica
 function populateVoices() {
-  const voices = window.speechSynthesis.getVoices();
   const sel = document.getElementById("voiceSelect");
   if (!sel) return;
-  const itVoices = voices.filter(v => v.lang.startsWith("it"));
-  if (itVoices.length === 0) {
-    // Mostra tutte se non ci sono italiane
-    voices.forEach(v => {
-      const opt = document.createElement("option");
-      opt.value = v.name; opt.textContent = v.name.substring(0,22);
-      sel.appendChild(opt);
-    });
-  } else {
-    itVoices.forEach(v => {
-      const opt = document.createElement("option");
-      opt.value = v.name; opt.textContent = v.name.substring(0,22);
-      sel.appendChild(opt);
-    });
+  const riga = document.getElementById("voiceEngineRow"), nota = document.getElementById("voiceGoogleNote");
+  if (riga) riga.style.display = ttsRemoto.attivo ? "grid" : "none";
+  if (ttsRemoto.attivo) {
+    const eng = document.getElementById("voiceEngine"), s = leggiImpostazioniVoce();
+    if (eng && !eng.dataset.pronto) { eng.value = s.motore === "browser" ? "browser" : "google"; eng.dataset.pronto = "1"; }
   }
-  // Preseleziona la migliore
-  const preferred = ["Microsoft Elsa Online","Microsoft Elsa","Google italiano","Alice"];
-  for (const p of preferred) {
-    const found = Array.from(sel.options).find(o => o.value.includes(p));
-    if (found) { sel.value = found.value; break; }
+  if (nota) nota.style.display = usaGoogle() ? "block" : "none";
+  if (usaGoogle()) {
+    const s = leggiImpostazioniVoce();
+    sel.innerHTML = "";
+    ttsRemoto.voci.forEach(v => { const o = document.createElement("option"); o.value = v.id; o.textContent = v.label; sel.appendChild(o); });
+    if (s.nomeGoogle && ttsRemoto.voci.some(v => v.id === s.nomeGoogle)) sel.value = s.nomeGoogle;
+    const rate = document.getElementById("voiceRate"); if (rate && s.velocita) rate.value = String(s.velocita);
+    const tip = document.getElementById("voiceTip");
+    if (tip) { tip.className = "vp-tip ok"; tip.textContent = "Stai usando una voce neurale online (WaveNet): molto più naturale delle voci del browser."; }
+    return;
+  }
+  if (!window.speechSynthesis) return;
+  const classifica = VoceTTS.classificaVoci(window.speechSynthesis.getVoices());
+  const salvata = leggiImpostazioniVoce();
+  sel.innerHTML = "";
+  classifica.forEach(({ voce, naturale }) => {
+    const opt = document.createElement("option");
+    opt.value = voce.name;
+    opt.textContent = (naturale ? "★ " : "") + voce.name.replace(/^Microsoft\s+/, "").replace(/\s+-\s+.*$/, "");
+    sel.appendChild(opt);
+  });
+  if (salvata.nome && Array.from(sel.options).some(o => o.value === salvata.nome)) sel.value = salvata.nome;
+  const rate = document.getElementById("voiceRate");
+  if (rate && salvata.velocita) rate.value = String(salvata.velocita);
+  const tip = document.getElementById("voiceTip");
+  if (tip) {
+    if (!classifica.length) { tip.className = "vp-tip"; tip.textContent = "Nessuna voce italiana trovata: installa una voce italiana nelle impostazioni del sistema."; }
+    else if (classifica[0].naturale) { tip.className = "vp-tip ok"; tip.textContent = "Hai a disposizione voci di alta qualità (★): se vuoi, provane un'altra dall'elenco."; }
+    else { tip.className = "vp-tip"; tip.textContent = "Le voci disponibili in questo browser suonano più meccaniche. Per una voce molto più naturale apri PEI APP con Microsoft Edge (voci «Natural» gratuite, come Isabella o Elsa); su Mac e iPhone scarica una voce «Premium» italiana nelle impostazioni di sistema."; }
   }
 }
+function cambiaVoce() { salvaImpostazioniVoce(usaGoogle() ? { nomeGoogle: document.getElementById("voiceSelect").value } : { nome: document.getElementById("voiceSelect").value }); provaVoce(); }
+function cambiaMotore() { salvaImpostazioniVoce({ motore: document.getElementById("voiceEngine").value }); populateVoices(); provaVoce(); }
+async function caricaConfigTts() {
+  try {
+    const r = await fetch(PROXY_URL + "/tts-config");
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d && d.attivo && Array.isArray(d.voci) && d.voci.length) { ttsRemoto = { attivo: true, voci: d.voci }; populateVoices(); }
+  } catch (e) { /* senza voce online resta quella del browser */ }
+}
+caricaConfigTts();
+function cambiaVelocita() { salvaImpostazioniVoce({ velocita: parseFloat(document.getElementById("voiceRate").value) }); provaVoce(); }
+function provaVoce() { speak("Buongiorno, sono la voce di PEI APP. Leggerò così le mie domande: ti suona naturale?"); }
+function toggleVoicePanel() { document.getElementById("voicePop").classList.toggle("show"); }
 if (window.speechSynthesis) {
   window.speechSynthesis.onvoiceschanged = populateVoices;
-  // Alcune versioni browser caricano le voci subito, altre no
+  // Alcuni browser caricano le voci subito, altri dopo
   setTimeout(populateVoices, 200);
 }
 
@@ -1203,7 +1308,7 @@ function initSpeech() {
 function toggleDictation() {
   if(!recognition&&!initSpeech()){ alert("Dettatura non supportata. Usa Chrome o Edge."); return; }
   if(isRecording){ recognition.stop(); }
-  else { window.speechSynthesis.cancel(); document.getElementById("userInput").value=""; recognition.start(); isRecording=true; const b=document.getElementById("micBtn"); b.classList.add("recording"); b.textContent="⏹"; }
+  else { fermaVoce(); document.getElementById("userInput").value=""; recognition.start(); isRecording=true; const b=document.getElementById("micBtn"); b.classList.add("recording"); b.textContent="⏹"; }
 }
 function startMicAfterTTS() {
   if(!ttsAutoMic) return;
