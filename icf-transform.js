@@ -285,10 +285,61 @@ function buildFinalExportData({ anagrafica = {}, profile = {}, bItems = [], sIte
   };
 }
 
+// ── Evidenza: come ciò che l'utente dice o scrive diventa ICF ─────────────────
+// Etichetta ufficiale di un item del questionario (il codice stesso se non è tra i 47)
+function labelForCode(code) {
+  for (const d of ICF_DOMAINS) {
+    const it = d.items.find(x => x.code === code);
+    if (it) return it.label;
+  }
+  return code;
+}
+
+// Elenco leggibile di ciò che una risposta dell'AI ha registrato (dati del caso, item ICF, funzioni, strutture, fattori)
+function riepilogaAggiornamento(r) {
+  const out = [];
+  if (!r || typeof r !== "object") return out;
+  if (r.anagrafica) {
+    Object.entries(r.anagrafica).forEach(([k, v]) => {
+      if (v) out.push({ tipo: "Dato del caso", codice: "", testo: `${k}: ${v}`, inferito: false });
+    });
+  }
+  const u = r.icfUpdate;
+  if (u) {
+    (u.items || []).forEach(it => {
+      const pf = toNumOrNull(it.pf), cap = toNumOrNull(it.cap);
+      const valori = [pf !== null ? `PF ${pf}` : null, cap !== null ? `CAP ${cap}` : null].filter(Boolean).join(" · ");
+      out.push({ tipo: "Attività e partecipazione", codice: it.code, testo: `${labelForCode(it.code)}${valori ? " — " + valori : ""}`, nota: it.nota || "", inferito: it.fonte === "inferenza" });
+    });
+    (u.faItems || []).forEach(fa => {
+      out.push({ tipo: "Fattore ambientale", codice: fa.code, testo: `${fa.label || fa.code}${fa.effect ? " — " + fa.effect : ""}`, inferito: false });
+    });
+  }
+  (r.bItems || []).forEach(b => out.push({ tipo: "Funzione corporea", codice: b.code, testo: `${b.label || b.code}${b.qualifier !== undefined && b.qualifier !== null && b.qualifier !== "" ? " — qualificatore " + b.qualifier : ""}`, inferito: false }));
+  (r.sItems || []).forEach(s => out.push({ tipo: "Struttura corporea", codice: s.code, testo: `${s.label || s.code}${s.qualifier !== undefined && s.qualifier !== null && s.qualifier !== "" ? " — qualificatore " + s.qualifier : ""}`, inferito: false }));
+  (r.fpItems || []).forEach(f => out.push({ tipo: "Fattore personale", codice: f.code, testo: `${f.label || f.code}${f.note ? " — " + f.note : ""}`, inferito: false }));
+  return out;
+}
+
+// Associa a ogni dato registrato la frase dell'utente da cui nasce e il turno del colloquio
+function marcaEvidenza(r, frase, turno) {
+  if (!r || typeof r !== "object") return r;
+  const segna = (it) => { if (it && typeof it === "object") it.evidenza = { frase: String(frase || ""), turno }; };
+  if (r.icfUpdate) { (r.icfUpdate.items || []).forEach(segna); (r.icfUpdate.faItems || []).forEach(segna); }
+  (r.bItems || []).forEach(segna); (r.sItems || []).forEach(segna); (r.fpItems || []).forEach(segna);
+  return r;
+}
+
+// Impronta dello stato del questionario: serve a capire se è cambiato dopo la convalida
+function impronta({ anagrafica = {}, profile = {}, bItems = [], sItems = [], fpItems = [] } = {}) {
+  return JSON.stringify({ anagrafica, profile, bItems, sItems, fpItems });
+}
+
 const ICFTransform = {
   ICF_DOMAINS, DOMINI_TITOLI, ITEM_DESCRIZIONI, ITEM_DIMENSIONE_PEI, DIMENSIONE_LABELS, SCALA,
   totalItemCount, buildCodiciIcf, buildDominiIcf, buildSintesiAutomatica, countCompletion,
-  getMissingItems, getMissingByDomain, buildFinalExportData
+  getMissingItems, getMissingByDomain, buildFinalExportData,
+  labelForCode, riepilogaAggiornamento, marcaEvidenza, impronta
 };
 
 // Esposto sia per il caricamento come <script> classico nel browser (window.ICFTransform)
