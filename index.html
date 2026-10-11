@@ -1321,6 +1321,13 @@ function startMicAfterTTS() {
 // Frase con cui si apre sempre il colloquio (la impone anche il prompt del server; qui è la rete di sicurezza)
 const FRASE_APERTURA = "Il mio compito è di assisterLa nella compilazione del Questionario breve ICF-Scuola e, a seguire, di proporLe una bozza completa di PEI sulla base dei dati che abbiamo raccolto.";
 
+// La dettatura vocale usa il riconoscimento del browser: c'è in Chrome ed Edge, non in Firefox
+function micSupportato() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+function avvisoSenzaDettatura() {
+  if (micSupportato()) return;
+  addMessage("system", "In questo browser (ad esempio Firefox) la dettatura vocale non è disponibile: scriva le risposte nel riquadro in basso, oppure usi Chrome o Edge per dettarle a voce.");
+}
+
 async function initChat() {
   chatStarted = true;
   showTyping();
@@ -1328,11 +1335,12 @@ async function initChat() {
     const r=await callProxy("Inizia la compilazione guidata del Questionario ICF-Scuola rev.2026.");
     if (!(r.message || "").includes(FRASE_APERTURA)) r.message = FRASE_APERTURA + " " + (r.message || "");
     removeTyping(); addMessage("ai",r.message,r.hint);
+    avvisoSenzaDettatura();
     if(r.quickReplies?.length) setQR(r.quickReplies);
     speak(r.message, startMicAfterTTS);
   } catch(e) {
     const fallback = FRASE_APERTURA + " Per iniziare, mi serve un nome di fantasia o una sigla per l'alunno o l'alunna, l'età e la classe frequentata.";
-    removeTyping(); addMessage("ai", fallback);
+    removeTyping(); addMessage("ai", fallback); avvisoSenzaDettatura();
     speak(fallback, startMicAfterTTS);
   }
 }
@@ -1343,7 +1351,8 @@ function boot() {
     document.getElementById("statusLabel").textContent = "AI attiva";
     document.getElementById("userInput").disabled = false;
     document.getElementById("sendBtn").disabled = false;
-    document.getElementById("micBtn").disabled = false;
+    document.getElementById("micBtn").disabled = !micSupportato();
+    if (!micSupportato()) document.getElementById("micBtn").title = "Dettatura vocale non disponibile in questo browser: usi Chrome o Edge";
     // il dialogo parte solo dopo il clic su «Inizia» (vedi closeWelcome)
   } catch(e) {
     console.error("Errore avvio:", e);
