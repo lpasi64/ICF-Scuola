@@ -335,11 +335,36 @@ function impronta({ anagrafica = {}, profile = {}, bItems = [], sItems = [], fpI
   return JSON.stringify({ anagrafica, profile, bItems, sItems, fpItems });
 }
 
+// ── Chiusura del colloquio ────────────────────────────────────────────────────
+// Il colloquio non si chiude da solo e l'AI non scrive messaggi di chiusura: le fasi successive (revisione, convalida, generazione
+// del PEI) sono dell'interfaccia. Riconosce un messaggio di chiusura dell'AI (stesura, consegna di documenti, contatti futuri, saluti finali).
+const RX_CHIUSURA = /stesura|bozza completa|predisporre la bozza|procedo con|documenti definitivi|consegn|contattarla|contattare|completato (?:tutto )?il questionario|abbiamo (?:davvero )?completato|tutti gli item|concludere il colloquio|chiudere il colloquio|concludiamo|arrivederci|a presto|buon lavoro/i;
+function sembraChiusura(testo) {
+  return RX_CHIUSURA.test(String(testo || ""));
+}
+
+// Messaggio nascosto (non compare in chat) con cui si richiama l'AI agli item d ancora senza valore
+function testoRichiamoCompletezza(mancanti) {
+  const elenco = (mancanti || []).map(m => `${m.code} (${m.label})`).join(", ");
+  return `Controllo di completezza: non hai ancora un valore di PF e CAP per questi item: ${elenco}. Non concludere il colloquio e non scrivere alcun messaggio di chiusura. `
+    + `Per gli item non pertinenti al caso assegna 9 (non applicabile) con una nota breve, senza chiedere; per tutti gli altri fai ora una domanda esplicita e concreta all'interlocutore, un gruppo di item per volta.`;
+}
+
+// La convalida del questionario è possibile solo se ogni item d ha un valore (9 = non pertinente al caso conta come valore)
+function convalidaPossibile(profile) {
+  const mancanti = getMissingItems(profile);
+  return { possibile: mancanti.length === 0, mancanti };
+}
+
+// Quando tutti gli item d hanno un valore, l'app (non l'AI) dice cosa si fa ora
+const MESSAGGIO_QUESTIONARIO_COMPLETO = "Abbiamo raccolto tutti gli elementi del questionario. Può ora rivederlo e convalidarlo con il pulsante «Rivedere e convalidare il questionario» nel pannello a destra; dopo la convalida potrà generare la bozza di PEI.";
+
 const ICFTransform = {
   ICF_DOMAINS, DOMINI_TITOLI, ITEM_DESCRIZIONI, ITEM_DIMENSIONE_PEI, DIMENSIONE_LABELS, SCALA,
   totalItemCount, buildCodiciIcf, buildDominiIcf, buildSintesiAutomatica, countCompletion,
   getMissingItems, getMissingByDomain, buildFinalExportData,
-  labelForCode, riepilogaAggiornamento, marcaEvidenza, impronta
+  labelForCode, riepilogaAggiornamento, marcaEvidenza, impronta,
+  sembraChiusura, testoRichiamoCompletezza, MESSAGGIO_QUESTIONARIO_COMPLETO, convalidaPossibile
 };
 
 // Esposto sia per il caricamento come <script> classico nel browser (window.ICFTransform)

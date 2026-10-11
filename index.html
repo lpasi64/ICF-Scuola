@@ -391,6 +391,9 @@
   .vp-mic .export-btn { width: 100%; padding: 8px; }
   .mic-meter { height: 8px; background: var(--border); border-radius: 6px; overflow: hidden; margin: 8px 0 6px; }
   .mic-meter-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--brand-mid)); transition: width .08s linear; }
+  .rv-add-sel { margin-top: 8px; width: 100%; padding: 8px 10px; border: 1px dashed var(--brand); border-radius: 10px; background: var(--brand-soft); color: var(--brand-dark); font-size: .78rem; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; }
+  .review-sum.blocco { background: #FDECEC; border-color: #F2B8B8; color: #7A2323; }
+  .rv-blocco { font-size: .78rem; font-weight: 600; color: #7A2323; background: #FDECEC; border: 1px solid #F2B8B8; border-radius: 10px; padding: 7px 10px; margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -491,6 +494,7 @@
     <div class="review-legend"><strong>Come leggere i valori.</strong> <strong>PF</strong> (performance) = ciò che l'alunno fa nel suo contesto abituale. <strong>CAP</strong> (capacità) = ciò che saprebbe fare in condizioni standard, senza aiuti. Scala: 0 nessuna difficoltà · 1 lieve · 2 media · 3 grave · 4 completa · 9 non applicabile.</div>
     <div id="reviewBody"></div>
     <div class="review-foot">
+      <p class="rv-blocco" id="reviewBlocco" style="display:none"></p>
       <label class="review-confirm"><input type="checkbox" id="reviewOk" onchange="reviewToggle()"> Ho riletto il questionario e lo convalido: i dati riflettono ciò che so dell'alunno e del contesto. Resto responsabile dei contenuti che ne derivano.</label>
       <div class="review-actions">
         <button class="export-btn btn-reset" onclick="closeReview()">Torna al colloquio</button>
@@ -572,7 +576,7 @@
       <button class="export-btn btn-reset" onclick="resetSession()">↺ Nuovo</button>
     </div>
     <div class="validate-area">
-      <div class="valid-status" id="validStatus">Il questionario non è ancora convalidato: prima di generare il PEI va rivisto da te.</div>
+      <div class="valid-status" id="validStatus">Il questionario non è ancora convalidato: prima di generare il PEI va rivisto da Lei.</div>
       <button class="export-btn btn-validate" onclick="openReview(false)" id="reviewBtn">✅ Rivedere e convalidare il questionario</button>
     </div>
     <div class="pei-area">
@@ -624,8 +628,9 @@
   </div>
 </div>
 
-<script src="icf-transform.js?v=20261010"></script>
+<script src="icf-transform.js?v=20261012"></script>
 <script src="voce.js?v=20261010"></script>
+<script src="icf-bs.js?v=20261011"></script>
 <script>
 const PROXY_URL = "https://icf-scuola-production.up.railway.app";
 
@@ -676,7 +681,7 @@ function removeTyping() { const e=document.getElementById("typing"); if(e) e.rem
 function setQR(opts) {
   // Ogni opzione è una stringa (etichetta = testo inviato) oppure {label, text}
   // quando il testo effettivamente inviato all'AI deve essere diverso dall'etichetta visibile
-  // (es. i pulsanti "Completa <dominio>" generati da checkCompletionBeforeClosing).
+  // (es. i pulsanti "Completa <dominio>" generati da mostraMancanti).
   const c=document.getElementById("quickReplies"); c.innerHTML="";
   (opts||[]).forEach(o=>{
     const label = typeof o === "string" ? o : o.label;
@@ -721,6 +726,10 @@ function updateTabBadges() {
   });
 }
 function applyUpdate(r) {
+  // funzioni e strutture corporee: solo gli item previsti dagli allegati del questionario (gli altri non si registrano)
+  const scartati = [];
+  if (r.bItems) { const n = ICFBS.normalizzaVoci(r.bItems, "b"); r.bItems = n.voci; scartati.push(...n.scartati); }
+  if (r.sItems) { const n = ICFBS.normalizzaVoci(r.sItems, "s"); r.sItems = n.voci; scartati.push(...n.scartati); }
   marcaEvidenza(r, lastUserText, turno);   // ogni dato registrato porta la frase da cui nasce
   // Anagrafica
   if(r.anagrafica) {
@@ -772,7 +781,9 @@ function applyUpdate(r) {
   updateProgress(currentProgress);
   renderPanel();
   updateValidStatus();
-  return riepilogaAggiornamento(r);
+  const reg = riepilogaAggiornamento(r);
+  reg.scartati = scartati;
+  return reg;
 }
 // Etichette anagrafica
 const ANA_LABELS = {nome:"Nome/Sigla",eta:"Età",classe:"Classe",scuola:"Scuola",diagnosi:"Diagnosi/Condizioni",famiglia:"Famiglia",interessi:"Interessi",supporti:"Supporti attivi"};
@@ -922,7 +933,7 @@ function loadJSON(event) {
       sItems = data.struttureCorporee || [];
       fpItems = data.fattoriPersonali || [];
       profile = data.profilo || {};
-      chatStarted = true; validatedHash = null;   // un file caricato va rivisto e convalidato
+      sanitizzaBS(); chatStarted = true; validatedHash = null;   // un file caricato va rivisto e convalidato
       // Ripristina conversazione se presente
       if (data._history && data._history.length) {
         history = data._history;
@@ -1087,47 +1098,57 @@ function resetSession() {
   updateProgress(0); renderPanel(); initChat();
 }
 
-// Rete di sicurezza lato client: quando l'AI propone di chiudere il colloquio (quickReplies
-// che include qualcosa tipo "Concludi il colloquio") ma restano item senza valore, non fidarsi
-// del solo autocontrollo del modello — mostra cosa manca e offre di completarlo prima di chiudere.
-function checkCompletionBeforeClosing(r) {
-  const looksLikeClosing = (r.quickReplies||[]).some(q => /conclud/i.test(q));
-  if (!looksLikeClosing) {
-    if (r.quickReplies?.length) setQR(r.quickReplies);
-    return;
-  }
+// Il colloquio non si chiude finché ogni item d non ha un valore (9 = non pertinente). Se mancano item si mostrano, con i pulsanti
+// per completare un dominio alla volta; non esiste «Concludi comunque».
+function mostraMancanti() {
   const missing = getMissingByDomain(profile);
-  if (!missing.length) { setQR(r.quickReplies); return; }
-  const totalMissing = missing.reduce((n,d)=>n+d.items.length,0);
-  const parts = missing.map(d => `${d.icon} <strong>${d.domainId} · ${d.domainLabel}</strong>: ${d.items.map(i=>i.label).join(", ")}`);
-  addMessage("system", `Prima di concludere: mancano ancora ${totalMissing} item su 47 —<br>${parts.join("<br>")}`);
-  const qrs = missing.map(d => ({
+  if (!missing.length) return;
+  const totalMissing = missing.reduce((n, d) => n + d.items.length, 0);
+  const parts = missing.map(d => `${d.icon} <strong>${d.domainId} · ${d.domainLabel}</strong>: ${d.items.map(i => i.label).join(", ")}`);
+  addMessage("system", `Prima di proseguire: mancano ancora ${totalMissing} item su 47 —<br>${parts.join("<br>")}`);
+  setQR(missing.map(d => ({
     label: `Completa: ${d.domainLabel}`,
-    text: `Parliamo ancora di ${d.domainId} · ${d.domainLabel}: mancano ancora ${d.items.map(i=>i.label).join(", ")}.`
-  }));
-  qrs.push({ label: "Concludi comunque", text: "Va bene così, possiamo concludere il colloquio anche con questi elementi mancanti." });
-  setQR(qrs);
+    text: `Parliamo ancora di ${d.domainId} · ${d.domainLabel}: mancano ancora ${d.items.map(i => i.label).join(", ")}.`
+  })));
 }
 
 async function sendMessage() {
-  const input=document.getElementById("userInput");
-  const text=input.value.trim(); if(!text) return;
-  input.value=""; input.style.height="auto";
+  const input = document.getElementById("userInput");
+  const text = input.value.trim(); if (!text) return;
+  input.value = ""; input.style.height = "auto";
   lastUserText = text; turno++;
-  setQR([]); addMessage("user",text); showTyping();
-  document.getElementById("sendBtn").disabled=true;
+  setQR([]); addMessage("user", text); showTyping();
+  document.getElementById("sendBtn").disabled = true;
   try {
-    const r=await callProxy(text); removeTyping();
-    addMessage("ai",r.message,r.hint);
-    const reg = applyUpdate(r);
-    if (reg.length) addEvidenza(reg, text);
-    checkCompletionBeforeClosing(r);
-    if(typeof r.progress==="number") updateProgress(r.progress);
+    let r = await callProxy(text);
+    const regTot = [], scartTot = [];
+    const registra = (x) => { const g = applyUpdate(x); regTot.push(...g); scartTot.push(...(g.scartati || [])); };
+    registra(r);
+    // se l'AI tenta di chiudere con item d ancora senza valore, un messaggio nascosto la riporta alle domande (al massimo due volte)
+    let tentativi = 0;
+    while (tentativi < 2 && ICFTransform.sembraChiusura(r.message) && ICFTransform.getMissingItems(profile).length) {
+      tentativi++;
+      r = await callProxy(ICFTransform.testoRichiamoCompletezza(ICFTransform.getMissingItems(profile)));
+      registra(r);
+    }
+    removeTyping();
+    const mancanti = ICFTransform.getMissingItems(profile);
+    const chiusuraResidua = ICFTransform.sembraChiusura(r.message);
+    r.quickReplies = (r.quickReplies || []).filter(q => !/conclud|chiud|stesura|procedi/i.test(typeof q === "string" ? q : (q.label || "")));
+    if (chiusuraResidua) {
+      // l'AI non deve presentare chiusure: se il questionario è completo lo dice l'app, altrimenti si riprende con gli item mancanti
+      r = { ...r, hint: null, quickReplies: [], message: mancanti.length ? "Prima di proseguire completiamo ancora alcuni elementi del questionario." : ICFTransform.MESSAGGIO_QUESTIONARIO_COMPLETO };
+    }
+    addMessage("ai", r.message, r.hint);
+    if (regTot.length) addEvidenza(regTot, text);
+    if (scartTot.length) addMessage("system", "Non ho registrato queste voci, perché le funzioni e le strutture corporee del questionario sono solo quelle previste dagli allegati: " + scartTot.map(x => esc(x.code) + (x.label ? " (" + esc(x.label) + ")" : "")).join(", ") + ".");
+    if (chiusuraResidua && mancanti.length) mostraMancanti(); else if (r.quickReplies.length) setQR(r.quickReplies);
+    if (typeof r.progress === "number") updateProgress(r.progress);
     speak(r.message, startMicAfterTTS);
-  } catch(err) {
-    removeTyping(); addMessage("ai","Errore di connessione. Riprovi tra qualche secondo.");
+  } catch (err) {
+    removeTyping(); addMessage("ai", "Errore di connessione. Riprovi tra qualche secondo.");
     console.error(err);
-  } finally { document.getElementById("sendBtn").disabled=false; }
+  } finally { document.getElementById("sendBtn").disabled = false; }
 }
 
 document.getElementById("userInput").addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} });
@@ -1474,7 +1495,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ── Evidenza ICF, convalida e revisione del questionario ─────────────────────
-const { marcaEvidenza, riepilogaAggiornamento, impronta, labelForCode } = ICFTransform;
+const { marcaEvidenza, riepilogaAggiornamento, impronta, labelForCode, convalidaPossibile } = ICFTransform;
 let chatStarted = false, turno = 0, lastUserText = "", validatedHash = null, validatedAt = null, reviewThenGenerate = false;
 
 function esc(s) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
@@ -1496,7 +1517,7 @@ function updateValidStatus() {
     el.textContent = "⚠️ Il questionario è cambiato dopo la convalida: va rivisto e convalidato di nuovo.";
   } else {
     el.className = "valid-status";
-    el.textContent = "Il questionario non è ancora convalidato: prima di generare il PEI va rivisto da te.";
+    el.textContent = "Il questionario non è ancora convalidato: prima di generare il PEI va rivisto da Lei.";
   }
   if (pei) { pei.classList.toggle("locked", !isValidated()); pei.title = isValidated() ? "" : "Prima va rivisto e convalidato il questionario"; }
 }
@@ -1523,17 +1544,32 @@ function selHtml(attrs, val, opts) {
 }
 function fonteHtml(it) {
   if (!it) return '<span class="src">non valutato</span>';
-  if (it.fonte === "insegnante") return '<span class="src">✏️ inserito o corretto da te</span>';
+  if (it.fonte === "insegnante") return '<span class="src">✏️ inserito o corretto da Lei</span>';
   const f = it.evidenza && it.evidenza.frase;
   const base = it.fonte === "inferenza" ? "💡 dedotto dall'AI" : "dalla Sua risposta";
   return f ? `<span class="src">${base}: «${esc(breve(f, 130))}»</span>` : `<span class="src">${base} (bozza precedente)</span>`;
 }
 
+// Riquadro in testa alla revisione: se mancano item d la convalida è bloccata e qui si spiega perché e cosa fare
+function htmlRiassuntoRevisione() {
+  const { filled, total } = countCompletion(profile), v = convalidaPossibile(profile);
+  if (v.possibile) return `Attività e partecipazione: <strong>${filled} voci su ${total}</strong>: tutte hanno un valore. Può procedere con la convalida.`;
+  return `<strong>Mancano ${v.mancanti.length} item d su ${total}</strong>: la convalida è possibile solo quando tutti hanno un valore (da 0 a 4, oppure 9 se non pertinente al caso). Può completarli qui sotto, nelle righe «non valutato», oppure tornare al colloquio. Mancano: ${v.mancanti.map(m => m.code + " (" + esc(m.label) + ")").join(", ")}.`;
+}
+function aggiornaStatoConvalida() {
+  const v = convalidaPossibile(profile), ok = document.getElementById("reviewOk"), btn = document.getElementById("reviewConfirmBtn"), nota = document.getElementById("reviewBlocco");
+  const blocca = !v.possibile || !haDati();
+  ok.disabled = blocca; if (blocca) ok.checked = false;
+  btn.disabled = blocca || !ok.checked;
+  if (nota) { nota.style.display = v.possibile ? "none" : "block"; nota.textContent = v.possibile ? "" : "Convalida non disponibile: mancano " + v.mancanti.length + " item d. Li completi, oppure torni al colloquio."; }
+  const sum = document.querySelector(".review-sum");
+  if (sum && haDati()) { sum.className = "review-sum" + (v.possibile ? "" : " blocco"); sum.innerHTML = htmlRiassuntoRevisione(); }
+}
+
 function renderReview() {
   const body = document.getElementById("reviewBody");
   let h = "";
-  const { filled, total } = countCompletion(profile);
-  h += `<div class="review-sum">Attività e partecipazione: <strong>${filled} voci su ${total}</strong> hanno un valore. Le altre restano «non valutate» e non vengono considerate difficoltà: può lasciarle così o completarle ora.</div>`;
+  h += `<div class="review-sum${convalidaPossibile(profile).possibile ? "" : " blocco"}">${htmlRiassuntoRevisione()}</div>`;
 
   // Dati del caso
   const chiavi = [...Object.keys(ANA_LABELS), ...Object.keys(anagrafica).filter(k => !(k in ANA_LABELS))];
@@ -1572,8 +1608,25 @@ function renderReview() {
     });
     h += `<button class="rv-add" data-act="add" data-k="${kind}">＋ Aggiungi</button></div></div>`;
   };
-  lista("Funzioni corporee (b)", "⚡", "b", bItems, "qual");
-  lista("Strutture corporee (s)", "🔬", "s", sItems, "qual");
+  const listaBS = (titolo, icona, kind, arr, catalogo, gruppi) => {
+    const usati = new Set(arr.map(x => x.code));
+    h += `<div class="rv-sec"><h3>${icona} ${titolo} <small>${arr.length} voci · solo gli item previsti dagli allegati</small></h3><div class="rv-body">`;
+    if (!arr.length) h += `<div class="rv-empty">Nessuna voce. Può aggiungerne una dall'elenco previsto dagli allegati.</div>`;
+    arr.forEach((x, i) => {
+      h += `<div class="rv-row simple"><span class="code">${esc(x.code)}</span><span class="lbl">${esc(x.label)}${fonteHtml(x)}</span>`
+        + selHtml(`data-k="${kind}" data-i="${i}" data-f="qualifier" aria-label="qualificatore ${esc(x.code)}"`, x.qualifier, SCALA_OPT)
+        + `<input type="text" data-k="${kind}" data-i="${i}" data-f="note" value="${esc(x.note || "")}" placeholder="nota" aria-label="nota ${esc(x.code)}">`
+        + `<button class="rv-x" data-act="del" data-k="${kind}" data-i="${i}" title="Togli questa voce" aria-label="Togli">✕</button></div>`;
+    });
+    const gruppiOrd = [...new Set(catalogo.map(c => c.gruppo))];
+    const opzioni = gruppiOrd.map(g => {
+      const voci = catalogo.filter(c => c.gruppo === g && !usati.has(c.code));
+      return voci.length ? `<optgroup label="${esc(gruppi[g])}">${voci.map(c => `<option value="${c.code}">${c.code} · ${esc(c.testo)}</option>`).join("")}</optgroup>` : "";
+    }).join("");
+    h += `<select class="rv-add-sel" data-add="${kind}" aria-label="Aggiungi una voce"><option value="">＋ Aggiungi una voce dall'elenco…</option>${opzioni}</select></div></div>`;
+  };
+  listaBS("Funzioni corporee (b)", "⚡", "b", bItems, ICFBS.FUNZIONI_CORPOREE, ICFBS.GRUPPI_B);
+  listaBS("Strutture corporee (s)", "🔬", "s", sItems, ICFBS.STRUTTURE_CORPOREE, ICFBS.GRUPPI_S);
   lista("Fattori personali (i)", "🧬", "fp", fpItems, "nota");
 
   // Fattori ambientali
@@ -1604,7 +1657,7 @@ function revApply(el) {
     let it = arr.find(x => x.code === code);
     if (!it) { it = { code, label: labelForCode(code), pf: null, cap: null, nota: "" }; arr.push(it); }
     if (f === "nota") it.nota = v; else it[f] = v === "" ? null : Number(v);
-    it.fonte = "insegnante"; it.evidenza = { frase: "Inserito o corretto da te nella revisione", turno: 0 };
+    it.fonte = "insegnante"; it.evidenza = { frase: "Inserito o corretto da Lei nella revisione", turno: 0 };
     const vuoto = (x) => x === null || x === undefined || x === "";
     if (vuoto(it.pf) && vuoto(it.cap) && !(it.nota || "").trim()) arr.splice(arr.indexOf(it), 1);
   } else if (k === "b" || k === "s" || k === "fp") {
@@ -1616,8 +1669,7 @@ function revApply(el) {
     it[f] = v; it.fonte = "insegnante";
   }
   updateTabBadges(); updateProgress(currentProgress); renderPanel(); updateValidStatus();
-  const resumo = document.querySelector(".review-sum");
-  if (resumo) { const { filled, total } = countCompletion(profile); resumo.innerHTML = `Attività e partecipazione: <strong>${filled} voci su ${total}</strong> hanno un valore. Le altre restano «non valutate» e non vengono considerate difficoltà: può lasciarle così o completarle ora.`; }
+  aggiornaStatoConvalida();
 }
 function revAction(btn) {
   const k = btn.dataset.k, act = btn.dataset.act;
@@ -1632,7 +1684,7 @@ function revAction(btn) {
       profile.D1.faItems.push({ code: "", label: "", effect: "", fonte: "insegnante" });
     }
   }
-  updateTabBadges(); renderPanel(); updateValidStatus(); renderReview();
+  updateTabBadges(); renderPanel(); updateValidStatus(); renderReview(); aggiornaStatoConvalida();
 }
 
 function openReview(thenGenerate) {
@@ -1644,14 +1696,15 @@ function openReview(thenGenerate) {
     document.getElementById("reviewConfirmBtn").disabled = true;
   } else {
     renderReview();
-    const ok = document.getElementById("reviewOk"); ok.disabled = false; ok.checked = false;
-    document.getElementById("reviewConfirmBtn").disabled = true;
+    document.getElementById("reviewOk").checked = false;
+    aggiornaStatoConvalida();
   }
   bd.classList.add("show"); bd.scrollTop = 0;
 }
 function closeReview() { document.getElementById("reviewBackdrop").classList.remove("show"); }
-function reviewToggle() { document.getElementById("reviewConfirmBtn").disabled = !document.getElementById("reviewOk").checked; }
+function reviewToggle() { aggiornaStatoConvalida(); }
 function confirmReview() {
+  if (!convalidaPossibile(profile).possibile) { aggiornaStatoConvalida(); return; }   // senza tutti gli item d non si convalida
   // le voci senza codice (aggiunte e lasciate vuote) non entrano nel questionario
   bItems = bItems.filter(x => (x.code || "").trim()); sItems = sItems.filter(x => (x.code || "").trim()); fpItems = fpItems.filter(x => (x.code || "").trim());
   Object.values(profile).forEach(d => { d.faItems = (d.faItems || []).filter(x => (x.code || "").trim()); });
@@ -1662,10 +1715,24 @@ function confirmReview() {
 }
 document.getElementById("reviewBody").addEventListener("input", (e) => { if (e.target.matches("input[data-k]")) revApply(e.target); });
 document.getElementById("reviewBody").addEventListener("change", (e) => { if (e.target.matches("select[data-k]")) revApply(e.target); });
+document.getElementById("reviewBody").addEventListener("change", (e) => {
+  const sel = e.target.closest("select[data-add]");
+  if (!sel || !sel.value) return;
+  const kind = sel.dataset.add, voce = ICFBS.voceBS(sel.value);
+  if (voce) (kind === "b" ? bItems : sItems).push({ code: voce.code, label: voce.testo, qualifier: "", note: "", fonte: "insegnante", evidenza: { frase: "Aggiunto da Lei nella revisione", turno: 0 } });
+  updateTabBadges(); renderPanel(); updateValidStatus(); renderReview(); aggiornaStatoConvalida();
+});
 document.getElementById("reviewBody").addEventListener("click", (e) => { const b = e.target.closest("[data-act]"); if (b) revAction(b); });
 updateValidStatus();
 
 // ── Avvio del dialogo: solo dopo il clic su «Inizia» ─────────────────────────
+// Porta funzioni e strutture dello stato agli item degli allegati (dati di bozze o file precedenti)
+function sanitizzaBS() {
+  const b = ICFBS.normalizzaVoci(bItems, "b"), s = ICFBS.normalizzaVoci(sItems, "s");
+  bItems = b.voci; sItems = s.voci;
+  return b.scartati.length + s.scartati.length;
+}
+
 function riprendiBozzaSeEsiste() {
   let draft = null;
   try { draft = localStorage.getItem("icf_draft"); } catch (e) { return false; }
@@ -1677,7 +1744,7 @@ function riprendiBozzaSeEsiste() {
     anagrafica = data.anagrafica || {}; bItems = data.funzioniCorporee || []; sItems = data.struttureCorporee || [];
     fpItems = data.fattoriPersonali || []; profile = data.profilo || {};
     if (data._history) history = data._history;
-    currentProgress = Object.keys(profile).length; chatStarted = true;
+    sanitizzaBS(); currentProgress = Object.keys(profile).length; chatStarted = true;
     updateProgress(currentProgress); updateTabBadges(); renderPanel(); updateValidStatus();
     document.getElementById("messages").innerHTML = "";
     addMessage("ai", "Ho ripreso la bozza salvata. Possiamo continuare il colloquio.");
