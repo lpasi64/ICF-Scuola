@@ -1290,31 +1290,87 @@ if (window.speechSynthesis) {
 }
 
 // ── DETTATURA ────────────────────────────────────────────────────────────────
-let recognition=null, isRecording=false;
+// Riconoscimento vocale del browser (Chrome, Edge). Registra finché non si preme di nuovo il microfono o finché si tace per qualche
+// secondo, poi invia il testo. Ogni errore (permesso negato, nessun microfono, rete…) viene spiegato in chat, mai taciuto.
+let recognition = null, isRecording = false;
+let dettatura = { auto: false, errore: false, timerSilenzio: null, haParlato: false };
+const SILENZIO_DOPO_PAROLA_MS = 3500, SILENZIO_INIZIALE_MS = 9000;
+const PLACEHOLDER_INPUT = "Descriva la situazione dell'alunno/a…";
+
+function statoMic(attivo) {
+  const b = document.getElementById("micBtn"), inp = document.getElementById("userInput");
+  b.classList.toggle("recording", attivo); b.textContent = attivo ? "⏹" : "🎤";
+  b.title = attivo ? "Interrompi e invia" : "Dettatura vocale";
+  inp.placeholder = attivo ? "🎙️ In ascolto… parli ora" : PLACEHOLDER_INPUT;
+}
+function impostaTimerSilenzio(ms) {
+  clearTimeout(dettatura.timerSilenzio);
+  dettatura.timerSilenzio = setTimeout(() => { if (isRecording && recognition) recognition.stop(); }, ms);
+}
 function initSpeech() {
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR) return false;
-  recognition=new SR(); recognition.lang="it-IT"; recognition.continuous=false; recognition.interimResults=true;
-  recognition.onresult=(e)=>{ const t=Array.from(e.results).map(r=>r[0].transcript).join(""); const inp=document.getElementById("userInput"); inp.value=t; inp.style.height="auto"; inp.style.height=Math.min(inp.scrollHeight,100)+"px"; };
-  recognition.onend=()=>{
-    isRecording=false;
-    const b=document.getElementById("micBtn"); b.classList.remove("recording"); b.textContent="🎤";
-    const text=document.getElementById("userInput").value.trim();
-    if(text) sendMessage();
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return false;
+  recognition = new SR();
+  recognition.lang = "it-IT"; recognition.continuous = true; recognition.interimResults = true; recognition.maxAlternatives = 1;
+  recognition.onstart = () => { isRecording = true; statoMic(true); };
+  recognition.onresult = (e) => {
+    const t = Array.from(e.results).map(r => r[0].transcript).join(" ").replace(/\s+/g, " ").trim();
+    const inp = document.getElementById("userInput");
+    inp.value = t; inp.style.height = "auto"; inp.style.height = Math.min(inp.scrollHeight, 100) + "px";
+    dettatura.haParlato = true;
+    impostaTimerSilenzio(SILENZIO_DOPO_PAROLA_MS);   // si chiude da sola dopo qualche secondo di silenzio
   };
-  recognition.onerror=(e)=>{ isRecording=false; document.getElementById("micBtn").classList.remove("recording"); document.getElementById("micBtn").textContent="🎤"; };
+  recognition.onerror = (e) => {
+    dettatura.errore = true;
+    console.warn("Dettatura, errore:", e.error);
+    const m = VoceTTS.messaggioErroreDettatura(e.error);
+    // l'avvio automatico dopo la lettura non deve disturbare per un semplice silenzio
+    if (m && !(dettatura.auto && e.error === "no-speech")) addMessage("system", m);
+  };
+  recognition.onend = () => {
+    clearTimeout(dettatura.timerSilenzio);
+    isRecording = false; statoMic(false);
+    const text = document.getElementById("userInput").value.trim();
+    if (text) sendMessage();
+    else if (!dettatura.errore && !dettatura.auto) addMessage("system", VoceTTS.messaggioErroreDettatura("no-speech"));
+    dettatura.errore = false; dettatura.auto = false;
+  };
   return true;
 }
-function toggleDictation() {
-  if(!recognition&&!initSpeech()){ alert("Dettatura non supportata. Usi Chrome o Edge."); return; }
-  if(isRecording){ recognition.stop(); }
-  else { fermaVoce(); document.getElementById("userInput").value=""; recognition.start(); isRecording=true; const b=document.getElementById("micBtn"); b.classList.add("recording"); b.textContent="⏹"; }
+// Prima di registrare si verifica che il microfono sia davvero disponibile: così un permesso negato o un microfono assente
+// vengono spiegati subito, invece di far accendere e spegnere il pulsante senza dire nulla.
+async function microfonoDisponibile() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true;
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+    s.getTracks().forEach(t => t.stop());
+    return true;
+  } catch (e) {
+    console.warn("Microfono non disponibile:", e.name);
+    addMessage("system", VoceTTS.messaggioErroreDettatura(e.name === "NotFoundError" || e.name === "OverconstrainedError" ? "audio-capture" : "not-allowed"));
+    return false;
+  }
 }
-function startMicAfterTTS() {
-  if(!ttsAutoMic) return;
-  if(!recognition&&!initSpeech()) return;
-  if(isRecording) return;
-  setTimeout(()=>{ document.getElementById("userInput").value=""; recognition.start(); isRecording=true; const b=document.getElementById("micBtn"); b.classList.add("recording"); b.textContent="⏹"; }, 300);
+async function avviaDettatura(auto) {
+  if (!recognition && !initSpeech()) return;
+  if (isRecording) return;
+  if (!auto && !(await microfonoDisponibile())) return;
+  fermaVoce();
+  document.getElementById("userInput").value = "";
+  dettatura = { auto: !!auto, errore: false, timerSilenzio: null, haParlato: false };
+  try { recognition.start(); impostaTimerSilenzio(SILENZIO_INIZIALE_MS); }
+  catch (e) { console.warn("Avvio dettatura:", e.message); statoMic(false); }
+}
+function toggleDictation() {
+  if (!micSupportato()) { addMessage("system", "La dettatura vocale non è disponibile in questo browser: scriva le risposte, oppure usi Chrome o Edge."); return; }
+  if (isRecording) { recognition.stop(); return; }
+  avviaDettatura(false);
+}
+// Dopo la lettura dell'assistente il microfono si riattiva da solo, ma solo se il permesso è già stato concesso
+async function startMicAfterTTS() {
+  if (!ttsAutoMic || !micSupportato() || isRecording) return;
+  try { const p = await navigator.permissions.query({ name: "microphone" }); if (p.state !== "granted") return; } catch (e) { return; }
+  setTimeout(() => avviaDettatura(true), 400);
 }
 
 // AVVIO

@@ -124,7 +124,28 @@ function scegliVoce(voci, nomePreferito) {
   return c.length ? { voce: c[0].voce, punteggio: c[0].punteggio } : { voce: null, punteggio: 0 };
 }
 
-const VoceTTS = { preparaTestoVocale, dividiInFrasi, raggruppaFrasi, scegliVoce, classificaVoci, punteggioVoce };
+// Spiegazione, al Lei e con il rimedio, di ciò che il browser segnala quando la dettatura non parte o si interrompe
+function messaggioErroreDettatura(codice) {
+  switch (codice) {
+    case "not-allowed":
+    case "service-not-allowed":
+      return "Il browser non ha il permesso di usare il microfono. Clicchi sull'icona del lucchetto accanto all'indirizzo della pagina, consenta il microfono e riprovi.";
+    case "audio-capture":
+      return "Non trovo nessun microfono attivo. Controlli che sia collegato e che sia quello selezionato nelle impostazioni audio del computer.";
+    case "no-speech":
+      return "Non ho sentito nulla. Riprovi e inizi a parlare subito dopo l'attivazione, avvicinandosi al microfono.";
+    case "network":
+      return "La dettatura usa i server di riconoscimento vocale del browser e non riesce a raggiungerli: controlli la connessione o eventuali blocchi di rete.";
+    case "language-not-supported":
+      return "Il browser non supporta la dettatura in italiano.";
+    case "aborted":
+      return "";
+    default:
+      return `La dettatura si è interrotta (${codice}). Riprovi, oppure scriva la risposta.`;
+  }
+}
+
+const VoceTTS = { preparaTestoVocale, dividiInFrasi, raggruppaFrasi, scegliVoce, classificaVoci, punteggioVoce, messaggioErroreDettatura };
 if (typeof globalThis !== "undefined") globalThis.VoceTTS = VoceTTS;
 if (typeof module !== "undefined" && module.exports) module.exports = VoceTTS;
 
