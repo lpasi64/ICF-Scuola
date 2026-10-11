@@ -145,7 +145,25 @@ function messaggioErroreDettatura(codice) {
   }
 }
 
-const VoceTTS = { preparaTestoVocale, dividiInFrasi, raggruppaFrasi, scegliVoce, classificaVoci, punteggioVoce, messaggioErroreDettatura };
+// Quando la dettatura si chiude senza testo e senza errori, gli eventi del browser dicono dove si è fermata la catena:
+// audio dal microfono → suono rilevato → voce riconosciuta come parlato → testo restituito dal servizio
+function diagnosiDettatura({ audio, suono, parlato }) {
+  if (!audio) return "Il browser non ha ricevuto audio dal microfono. Controlli che il microfono scelto nelle impostazioni audio del computer sia quello giusto e non sia disattivato, poi riprovi.";
+  if (!suono) return "Il microfono è attivo ma non rileva suono. Controlli che non sia disattivato, che il volume di ingresso non sia a zero e che sia selezionato il microfono giusto: può verificarlo con «Prova del microfono» nel pannello Voce.";
+  if (!parlato) return "Rilevo rumore ma non voce. Avvicini il microfono e parli in modo più chiaro, oppure scelga un microfono diverso.";
+  return "Il servizio di riconoscimento vocale del browser non ha restituito testo. Controlli la connessione e che nessuna estensione o regola di rete blocchi il servizio, poi riprovi oppure scriva la risposta.";
+}
+
+// Livello (0-100) di un segnale audio nel dominio del tempo (valori 0-255, silenzio = 128), per la «Prova del microfono»
+function livelloMicrofono(dati) {
+  if (!dati || !dati.length) return 0;
+  let somma = 0;
+  for (let i = 0; i < dati.length; i++) { const v = (dati[i] - 128) / 128; somma += v * v; }
+  const rms = Math.sqrt(somma / dati.length);
+  return Math.min(100, Math.round(rms * 100 * 4));
+}
+
+const VoceTTS = { preparaTestoVocale, dividiInFrasi, raggruppaFrasi, scegliVoce, classificaVoci, punteggioVoce, messaggioErroreDettatura, diagnosiDettatura, livelloMicrofono };
 if (typeof globalThis !== "undefined") globalThis.VoceTTS = VoceTTS;
 if (typeof module !== "undefined" && module.exports) module.exports = VoceTTS;
 

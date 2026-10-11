@@ -387,6 +387,10 @@
   .vp-actions { display: flex; gap: 8px; }
   .vp-actions .export-btn { flex: 1; padding: 8px 6px; }
   @media (max-width: 700px) { .voice-pop { left: 12px; right: 12px; bottom: 150px; width: auto; } }
+  .vp-mic { margin: 4px 0 12px; }
+  .vp-mic .export-btn { width: 100%; padding: 8px; }
+  .mic-meter { height: 8px; background: var(--border); border-radius: 6px; overflow: hidden; margin: 8px 0 6px; }
+  .mic-meter-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--brand-mid)); transition: width .08s linear; }
 </style>
 </head>
 <body>
@@ -497,12 +501,17 @@
 </div>
 
 <div class="voice-pop" id="voicePop" role="dialog" aria-label="Voce dell'assistente">
-  <h4>🎙️ Voce dell'assistente</h4>
+  <h4>🎙️ Voce e microfono</h4>
   <div class="vp-row" id="voiceEngineRow" style="display:none"><label for="voiceEngine">Tipo</label><select id="voiceEngine" onchange="cambiaMotore()"><option value="google">Voce naturale online (Google)</option><option value="browser">Voce del browser</option></select></div>
   <p class="vp-tip ok" id="voiceGoogleNote" style="display:none">Con la voce online, i messaggi dell'assistente da leggere vengono inviati a Google Cloud Text-to-Speech per generare l'audio. PEI APP non li conserva.</p>
   <div class="vp-row"><label for="voiceSelect">Voce</label><select id="voiceSelect" onchange="cambiaVoce()"></select></div>
   <div class="vp-row"><label for="voiceRate">Velocità</label><select id="voiceRate" onchange="cambiaVelocita()"><option value="0.88">Lenta</option><option value="1" selected>Normale</option><option value="1.12">Veloce</option></select></div>
   <p class="vp-tip" id="voiceTip"></p>
+  <div class="vp-mic">
+    <button class="export-btn btn-reset" onclick="provaMicrofono()" id="micTestBtn">🎤 Prova del microfono</button>
+    <div class="mic-meter" aria-hidden="true"><div class="mic-meter-fill" id="micMeterFill"></div></div>
+    <p class="vp-tip" id="micTestMsg" style="display:none"></p>
+  </div>
   <div class="vp-actions"><button class="export-btn btn-reset" onclick="provaVoce()">▶ Prova della voce</button><button class="export-btn btn-pei" onclick="toggleVoicePanel()">Chiudi</button></div>
 </div>
 
@@ -1282,6 +1291,22 @@ async function caricaConfigTts() {
 caricaConfigTts();
 function cambiaVelocita() { salvaImpostazioniVoce({ velocita: parseFloat(document.getElementById("voiceRate").value) }); provaVoce(); }
 function provaVoce() { speak("Buongiorno, sono la voce di PEI APP. Leggerò così le mie domande: Le suona naturale?"); }
+// Mostra per qualche secondo il livello del microfono: se la barra si muove, il browser sente il suono
+async function provaMicrofono() {
+  const msg = document.getElementById("micTestMsg"), fill = document.getElementById("micMeterFill"), btn = document.getElementById("micTestBtn");
+  msg.style.display = "block"; msg.className = "vp-tip"; msg.textContent = "Parli ora per qualche secondo…"; btn.disabled = true;
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch (e) { msg.textContent = VoceTTS.messaggioErroreDettatura(e.name === "NotFoundError" ? "audio-capture" : "not-allowed"); btn.disabled = false; return; }
+  const etichetta = (stream.getAudioTracks()[0] && stream.getAudioTracks()[0].label) || "predefinito";
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const an = ctx.createAnalyser(); an.fftSize = 1024; ctx.createMediaStreamSource(stream).connect(an);
+  const dati = new Uint8Array(an.fftSize); let massimo = 0; const t0 = performance.now();
+  await new Promise(fine => { const tick = () => { an.getByteTimeDomainData(dati); const l = VoceTTS.livelloMicrofono(dati); massimo = Math.max(massimo, l); fill.style.width = l + "%"; if (performance.now() - t0 < 4000) requestAnimationFrame(tick); else fine(); }; tick(); });
+  stream.getTracks().forEach(t => t.stop()); ctx.close(); fill.style.width = "0%"; btn.disabled = false;
+  if (massimo >= 8) { msg.className = "vp-tip ok"; msg.textContent = "Il microfono «" + etichetta + "» rileva il suono (livello massimo " + massimo + "%). Se la dettatura non scrive, il problema è nel servizio di riconoscimento vocale del browser: controlli la connessione."; }
+  else { msg.className = "vp-tip"; msg.textContent = "Il microfono «" + etichetta + "» non rileva suono. Controlli che non sia disattivato, il volume di ingresso e che sia quello giusto nelle impostazioni audio del computer."; }
+}
 function toggleVoicePanel() { document.getElementById("voicePop").classList.toggle("show"); }
 if (window.speechSynthesis) {
   window.speechSynthesis.onvoiceschanged = populateVoices;
@@ -1293,7 +1318,8 @@ if (window.speechSynthesis) {
 // Riconoscimento vocale del browser (Chrome, Edge). Registra finché non si preme di nuovo il microfono o finché si tace per qualche
 // secondo, poi invia il testo. Ogni errore (permesso negato, nessun microfono, rete…) viene spiegato in chat, mai taciuto.
 let recognition = null, isRecording = false;
-let dettatura = { auto: false, errore: false, timerSilenzio: null, haParlato: false };
+const nuovaDettatura = (auto) => ({ auto: !!auto, errore: false, timerSilenzio: null, haParlato: false, audio: false, suono: false, parlato: false });
+let dettatura = nuovaDettatura(false);
 const SILENZIO_DOPO_PAROLA_MS = 3500, SILENZIO_INIZIALE_MS = 9000;
 const PLACEHOLDER_INPUT = "Descriva la situazione dell'alunno/a…";
 
@@ -1313,6 +1339,9 @@ function initSpeech() {
   recognition = new SR();
   recognition.lang = "it-IT"; recognition.continuous = true; recognition.interimResults = true; recognition.maxAlternatives = 1;
   recognition.onstart = () => { isRecording = true; statoMic(true); };
+  recognition.onaudiostart = () => { dettatura.audio = true; };     // il browser riceve audio dal microfono
+  recognition.onsoundstart = () => { dettatura.suono = true; };     // nell'audio c'è del suono
+  recognition.onspeechstart = () => { dettatura.parlato = true; };  // e il suono sembra voce
   recognition.onresult = (e) => {
     const t = Array.from(e.results).map(r => r[0].transcript).join(" ").replace(/\s+/g, " ").trim();
     const inp = document.getElementById("userInput");
@@ -1332,7 +1361,11 @@ function initSpeech() {
     isRecording = false; statoMic(false);
     const text = document.getElementById("userInput").value.trim();
     if (text) sendMessage();
-    else if (!dettatura.errore && !dettatura.auto) addMessage("system", VoceTTS.messaggioErroreDettatura("no-speech"));
+    else if (!dettatura.errore && (!dettatura.auto || dettatura.suono)) {
+      // nessun testo e nessun errore: gli eventi dicono dove si è fermata la catena (con l'avvio automatico si avvisa solo se c'era suono)
+      console.warn("Dettatura senza testo:", { audio: dettatura.audio, suono: dettatura.suono, parlato: dettatura.parlato });
+      addMessage("system", VoceTTS.diagnosiDettatura(dettatura));
+    }
     dettatura.errore = false; dettatura.auto = false;
   };
   return true;
@@ -1357,7 +1390,7 @@ async function avviaDettatura(auto) {
   if (!auto && !(await microfonoDisponibile())) return;
   fermaVoce();
   document.getElementById("userInput").value = "";
-  dettatura = { auto: !!auto, errore: false, timerSilenzio: null, haParlato: false };
+  dettatura = nuovaDettatura(auto);
   try { recognition.start(); impostaTimerSilenzio(SILENZIO_INIZIALE_MS); }
   catch (e) { console.warn("Avvio dettatura:", e.message); statoMic(false); }
 }
