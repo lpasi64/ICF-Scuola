@@ -256,6 +256,24 @@
   .welcome-actions { display: flex; align-items: center; gap: 16px; margin-top: 18px; flex-wrap: wrap; }
   .btn-start { background: linear-gradient(120deg, var(--brand-dark), var(--brand) 60%, var(--brand-mid)); color: #fff; border: none; border-radius: 14px; padding: 14px 34px; font-size: 1rem; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; box-shadow: 0 8px 22px rgba(27,79,143,.4); transition: transform .12s, box-shadow .12s; }
   .btn-start:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(27,79,143,.46); }
+  .welcome-import { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border); display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--text-muted); line-height: 1.45; }
+  .btn-import { background: #fff; color: var(--brand-dark); border: 1.5px solid var(--brand); border-radius: 12px; padding: 10px 18px; font-size: .88rem; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; }
+  .btn-import:hover { background: var(--accent-soft); }
+  .imp-backdrop { position: fixed; inset: 0; background: rgba(14,32,60,.55); backdrop-filter: blur(3px); display: none; align-items: flex-start; justify-content: center; z-index: 2100; padding: 20px 14px; overflow-y: auto; }
+  .imp-backdrop.show { display: flex; }
+  .imp-modal { background: #fff; border-radius: 18px; width: 100%; max-width: 560px; margin: auto; padding: 24px 26px 20px; box-shadow: var(--shadow-md); font-family: 'Inter', sans-serif; }
+  .imp-modal h3 { font-family: 'Lora', serif; font-size: 1.25rem; color: var(--brand-dark); margin-bottom: 8px; }
+  .imp-modal label { display: block; font-size: .74rem; font-weight: 600; color: var(--text-muted); margin: 12px 0 3px; }
+  .imp-modal input[type=text], .imp-modal input[type=number] { width: 100%; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: .86rem; font-family: 'Inter', sans-serif; }
+  .imp-modal input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(27,79,143,.14); }
+  .imp-sum { font-size: .84rem; line-height: 1.5; color: var(--text); } .imp-sum ul { margin: 6px 0 0 18px; }
+  .imp-warn { background: #FFF8E1; border: 1px solid #F4E2A6; color: #5A4A1B; border-radius: 10px; padding: 9px 12px; font-size: .78rem; line-height: 1.45; margin-top: 10px; }
+  .imp-h { font-size: .82rem; font-weight: 700; color: var(--brand-dark); margin-top: 14px; } .imp-s { font-size: .75rem; color: var(--text-muted); line-height: 1.45; margin: 2px 0 6px; }
+  .imp-chk { display: flex; align-items: center; gap: 9px; font-size: .82rem; font-weight: 500; color: var(--text); margin: 4px 0; }
+  .imp-chk input { width: 17px; height: 17px; accent-color: var(--brand); }
+  .imp-note { font-size: .74rem; color: var(--text-muted); line-height: 1.45; margin-top: 12px; }
+  .imp-err { color: #B3261E; font-size: .8rem; font-weight: 600; min-height: 1.1em; margin-top: 8px; }
+  .imp-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
   .btn-link { background: none; border: none; color: var(--brand); font-size: .86rem; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; text-decoration: underline; }
 
   /* Finestra «Come funziona» */
@@ -430,6 +448,36 @@
     <div class="welcome-actions">
       <button class="btn-start" onclick="closeWelcome()" id="startBtn">Inizia</button>
     </div>
+    <div class="welcome-import">
+      <button class="btn-import" onclick="document.getElementById('importInput').click()">📂 Carica un questionario già compilato</button>
+      <span>Ha già compilato il questionario con ICF Applicazioni? Carichi il file JSON (breve o completo): il dialogo si salta e si passa direttamente alla revisione, alla convalida e alla bozza di PEI.</span>
+      <input type="file" id="importInput" accept=".json,application/json" style="display:none" onchange="importaQuestionario(event)">
+    </div>
+  </div>
+</div>
+
+<div class="imp-backdrop" id="importBackdrop">
+  <div class="imp-modal" role="dialog" aria-modal="true" aria-labelledby="impTitle">
+    <h3 id="impTitle">Questionario caricato</h3>
+    <div class="imp-sum" id="impSum"></div>
+    <div class="imp-warn" id="impMancanti" style="display:none"></div>
+    <label for="impNome">Nome di fantasia o sigla dell'alunno <strong>(obbligatorio)</strong></label>
+    <input type="text" id="impNome" maxlength="40" placeholder="es. Elia" autocomplete="off">
+    <label for="impEta">Età (facoltativa: viene chiesta comunque alla generazione del PEI)</label>
+    <input type="number" id="impEta" min="2" max="30" placeholder="es. 15">
+    <div id="impNomiBox" style="display:none">
+      <div class="imp-h">Nomi che compaiono nelle note</div>
+      <div class="imp-s">Le note possono citare il nome vero dell'alunno o di altre persone. Spunti i nomi da sostituire con quello di fantasia; se uno è un luogo, tolga la spunta e lo corregga nella revisione. La sostituzione avviene sul Suo computer, prima di qualsiasi invio a servizi esterni.</div>
+      <div id="impNomiList"></div>
+    </div>
+    <label for="impAltri">Altri nomi da sostituire (separati da virgola, facoltativo)</label>
+    <input type="text" id="impAltri" autocomplete="off">
+    <div class="imp-note">Dal file non si importano gli identificativi (codici di paziente e di questionario, compilatore) né la valutazione automatica. Nella revisione potrà leggere e correggere ogni nota, dato per dato. <strong>Le note, insieme ai codici, saranno inviate al servizio che scrive la bozza di PEI (Claude di Anthropic) per rendere il testo specifico per l'alunno:</strong> tolga nella revisione ciò che non deve lasciare il Suo computer.</div>
+    <div class="imp-err" id="impErr" role="alert"></div>
+    <div class="imp-actions">
+      <button class="export-btn btn-reset" onclick="annullaImport()">Annulla</button>
+      <button class="export-btn btn-pei" onclick="confermaImport()">Continua alla revisione</button>
+    </div>
   </div>
 </div>
 
@@ -450,6 +498,11 @@
         <li><strong>Bozza di PEI.</strong> Con «Genera PEI» sceglie grado scolastico, età e sesso: riceve il Word con le sezioni del modello ministeriale (D.I. 153/2023).</li>
       </ol>
       <div class="info-foot"><strong>Come leggere i valori.</strong> PF (performance) è ciò che l'alunno fa nel suo contesto abituale; CAP (capacità) è ciò che saprebbe fare in condizioni standard, senza aiuti. Scala: 0 nessuna difficoltà · 1 lieve · 2 media · 3 grave · 4 completa · 9 non applicabile.</div>
+    </div>
+
+    <div class="info-sec">
+      <h3>📂 Se il questionario è già compilato</h3>
+      <p>Se ha compilato il questionario con ICF Applicazioni, dalla schermata iniziale può caricare il file JSON (versione breve o completa) con «Carica un questionario già compilato»: si salta il dialogo. Dal file si estraggono solo i dati utili al PEI (gli item del questionario breve, le funzioni e strutture previste dagli allegati, fattori ambientali e personali); gli item in più della versione completa e gli identificativi del file non si importano. Il nome dell'alunno non è nel file: Lei indica un nome di fantasia e può far sostituire i nomi citati nelle note. Poi si passa alla revisione, alla convalida e alla bozza di PEI.</p>
     </div>
 
     <div class="info-sec privacy">
@@ -490,14 +543,14 @@
       <h2 id="reviewTitle">Rivedere e convalidare il questionario</h2>
       <button class="info-close" onclick="closeReview()" aria-label="Chiudi">✕</button>
     </div>
-    <p class="review-lead">Questo è il profilo ICF costruito dal colloquio. Controlli ogni voce: può correggere i valori, aggiungere ciò che manca e togliere ciò che non La convince. Per ciascuna voce vede da quale Sua frase nasce e se l'AI l'ha dedotta. Solo dopo la Sua convalida potrà generare la bozza di PEI.</p>
+    <p class="review-lead" id="reviewLead">Questo è il profilo ICF costruito dal colloquio. Controlli ogni voce: può correggere i valori, aggiungere ciò che manca e togliere ciò che non La convince. Per ciascuna voce vede da quale Sua frase nasce e se l'AI l'ha dedotta. Solo dopo la Sua convalida potrà generare la bozza di PEI.</p>
     <div class="review-legend"><strong>Come leggere i valori.</strong> <strong>PF</strong> (performance) = ciò che l'alunno fa nel suo contesto abituale. <strong>CAP</strong> (capacità) = ciò che saprebbe fare in condizioni standard, senza aiuti. Scala: 0 nessuna difficoltà · 1 lieve · 2 media · 3 grave · 4 completa · 9 non applicabile.</div>
     <div id="reviewBody"></div>
     <div class="review-foot">
       <p class="rv-blocco" id="reviewBlocco" style="display:none"></p>
       <label class="review-confirm"><input type="checkbox" id="reviewOk" onchange="reviewToggle()"> Ho riletto il questionario e lo convalido: i dati riflettono ciò che so dell'alunno e del contesto. Resto responsabile dei contenuti che ne derivano.</label>
       <div class="review-actions">
-        <button class="export-btn btn-reset" onclick="closeReview()">Torna al colloquio</button>
+        <button class="export-btn btn-reset" id="reviewBackBtn" onclick="closeReview()">Torna al colloquio</button>
         <button class="export-btn btn-pei" id="reviewConfirmBtn" onclick="confirmReview()" disabled>Convalida e continua</button>
       </div>
     </div>
@@ -628,9 +681,10 @@
   </div>
 </div>
 
-<script src="icf-transform.js?v=20261012"></script>
+<script src="icf-transform.js?v=20261013"></script>
 <script src="voce.js?v=20261010"></script>
 <script src="icf-bs.js?v=20261011"></script>
+<script src="icf-import.js?v=20261013"></script>
 <script>
 const PROXY_URL = "https://icf-scuola-production.up.railway.app";
 
@@ -767,6 +821,7 @@ function applyUpdate(r) {
     if(!profile[id]) profile[id]={items:[],faItems:[]};
     (u.items||[]).forEach(item=>{ const s=profile[id].items; const i=s.findIndex(x=>x.code===item.code); if(i>=0)s[i]=item; else s.push(item); });
     (u.faItems||[]).forEach(fa=>{ const s=profile[id].faItems; const i=s.findIndex(x=>x.code===fa.code); if(i>=0)s[i]=fa; else s.push(fa); });
+    normalizzaFattoriProfilo(profile);   // effetti sempre sulla scala della piattaforma (F++, F-, B-, B+, B++)
   }
   // Badge e auto-switch al tab appena popolato per la prima volta
   const prevAna=Object.keys(anagrafica).length, prevB=bItems.length, prevS=sItems.length;
@@ -892,7 +947,7 @@ function renderPanel() {
     if(!Object.keys(allFa).length){ panel.innerHTML='<div class="empty-state">Nessun fattore ambientale ancora rilevato.</div>'; return; }
     const div=document.createElement("div"); div.className="domain-block d-fa";
     div.innerHTML=`<div class="domain-hdr"><div class="dname"><span>🌍</span><span>Fattori Ambientali</span></div><span class="domain-badge">${Object.keys(allFa).length}</span></div>
-    <div class="domain-items">${Object.entries(allFa).map(([code,fa])=>`<div class="fa-row"><span class="code">${code}</span><span class="lbl">${fa.label}</span><span class="fa-badge ${(fa.effect||"").startsWith("+")?"fa-fac":"fa-bar"}">${fa.effect||"?"}</span></div>`).join("")}</div>`;
+    <div class="domain-items">${Object.entries(allFa).map(([code,fa])=>`<div class="fa-row"><span class="code">${code}</span><span class="lbl">${fa.label}</span><span class="fa-badge ${/^(\+|F)/.test(fa.effect||"")?"fa-fac":"fa-bar"}">${fa.effect||"?"}</span></div>`).join("")}</div>`;
     panel.appendChild(div);
   }
 }
@@ -1095,6 +1150,7 @@ function resetSession() {
   chatStarted=false; turno=0; lastUserText=""; validatedHash=null; validatedAt=null;
   document.getElementById("messages").innerHTML="";
   document.getElementById("quickReplies").innerHTML="";
+  impostaModalitaImport(false);
   updateProgress(0); renderPanel(); initChat();
 }
 
@@ -1490,12 +1546,13 @@ function openInfo() { document.getElementById('infoBackdrop').classList.add('sho
 function closeInfo() { document.getElementById('infoBackdrop').classList.remove('show'); }
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
-  if (document.getElementById('reviewBackdrop').classList.contains('show')) closeReview();
+  if (document.getElementById('importBackdrop').classList.contains('show')) annullaImport();
+  else if (document.getElementById('reviewBackdrop').classList.contains('show')) closeReview();
   else if (document.getElementById('infoBackdrop').classList.contains('show')) closeInfo();
 });
 
 // ── Evidenza ICF, convalida e revisione del questionario ─────────────────────
-const { marcaEvidenza, riepilogaAggiornamento, impronta, labelForCode, convalidaPossibile } = ICFTransform;
+const { marcaEvidenza, riepilogaAggiornamento, impronta, labelForCode, convalidaPossibile, normalizzaFattoriProfilo } = ICFTransform;
 let chatStarted = false, turno = 0, lastUserText = "", validatedHash = null, validatedAt = null, reviewThenGenerate = false;
 
 function esc(s) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
@@ -1536,7 +1593,7 @@ function addEvidenza(reg, frase) {
 
 // ── Revisione e convalida ────────────────────────────────────────────────────
 const SCALA_OPT = [["", "—"], ["0", "0 · nessuna"], ["1", "1 · lieve"], ["2", "2 · media"], ["3", "3 · grave"], ["4", "4 · completa"], ["9", "9 · non applicabile"]];
-const EFFETTO_OPT = [["", "—"], ["+4", "+4 facilitatore completo"], ["+3", "+3 facilitatore rilevante"], ["+2", "+2 facilitatore medio"], ["+1", "+1 facilitatore lieve"], ["0", "0 nessun effetto"], ["1", "1 barriera lieve"], ["2", "2 barriera media"], ["3", "3 barriera rilevante"], ["4", "4 barriera completa"]];
+const EFFETTO_OPT = [["", "—"], ["F++", "F++ facilitatore importante"], ["F-", "F- presente ma non sufficiente a compensare i limiti"], ["B-", "B- barriera media"], ["B+", "B+ barriera elevata"], ["B++", "B++ facilitatore necessario ma assente"]];   // la scala della piattaforma: i valori numerici di bozze vecchie si convertono (normalizzaFattoriProfilo)
 function selHtml(attrs, val, opts) {
   const v = String(val ?? "");
   const lista = opts.some(o => o[0] === v) ? opts : [...opts, [v, v]];
@@ -1545,6 +1602,7 @@ function selHtml(attrs, val, opts) {
 function fonteHtml(it) {
   if (!it) return '<span class="src">non valutato</span>';
   if (it.fonte === "insegnante") return '<span class="src">✏️ inserito o corretto da Lei</span>';
+  if (it.fonte === "file") return '<span class="src">📂 dal file importato da ICF Applicazioni</span>';
   const f = it.evidenza && it.evidenza.frase;
   const base = it.fonte === "inferenza" ? "💡 dedotto dall'AI" : "dalla Sua risposta";
   return f ? `<span class="src">${base}: «${esc(breve(f, 130))}»</span>` : `<span class="src">${base} (bozza precedente)</span>`;
@@ -1561,7 +1619,7 @@ function aggiornaStatoConvalida() {
   const blocca = !v.possibile || !haDati();
   ok.disabled = blocca; if (blocca) ok.checked = false;
   btn.disabled = blocca || !ok.checked;
-  if (nota) { nota.style.display = v.possibile ? "none" : "block"; nota.textContent = v.possibile ? "" : "Convalida non disponibile: mancano " + v.mancanti.length + " item d. Li completi, oppure torni al colloquio."; }
+  if (nota) { nota.style.display = v.possibile ? "none" : "block"; nota.textContent = v.possibile ? "" : "Convalida non disponibile: mancano " + v.mancanti.length + " item d. " + (questionarioImportato ? "Li completi qui sotto, nelle righe vuote." : "Li completi, oppure torni al colloquio."); }
   const sum = document.querySelector(".review-sum");
   if (sum && haDati()) { sum.className = "review-sum" + (v.possibile ? "" : " blocco"); sum.innerHTML = htmlRiassuntoRevisione(); }
 }
@@ -1586,10 +1644,10 @@ function renderReview() {
       + dom.items.map(def => {
         const it = data.items.find(x => x.code === def.code);
         const vuota = !it || ((it.pf === null || it.pf === undefined || it.pf === "") && (it.cap === null || it.cap === undefined || it.cap === ""));
-        return `<div class="rv-row${vuota ? " empty" : ""}"><span class="code">${def.code}</span><span class="lbl">${esc(def.label)}${fonteHtml(it)}${it && it.nota && it.fonte !== "insegnante" ? `<span class="src">nota AI: ${esc(breve(it.nota, 140))}</span>` : ""}</span>`
+        return `<div class="rv-row${vuota ? " empty" : ""}"><span class="code">${def.code}</span><span class="lbl">${esc(def.label)}${fonteHtml(it)}${it && it.nota && it.fonte !== "insegnante" && it.fonte !== "file" ? `<span class="src">nota AI: ${esc(breve(it.nota, 140))}</span>` : ""}</span>`
           + selHtml(`data-k="ap" data-dom="${dom.id}" data-code="${def.code}" data-f="pf" aria-label="PF ${def.code}"`, it ? it.pf : "", SCALA_OPT)
           + selHtml(`data-k="ap" data-dom="${dom.id}" data-code="${def.code}" data-f="cap" aria-label="CAP ${def.code}"`, it ? it.cap : "", SCALA_OPT)
-          + `<input type="text" data-k="ap" data-dom="${dom.id}" data-code="${def.code}" data-f="nota" value="${esc(it ? (it.fonte === "insegnante" ? it.nota : "") : "")}" placeholder="Sua nota (facoltativa)"></div>`;
+          + `<input type="text" data-k="ap" data-dom="${dom.id}" data-code="${def.code}" data-f="nota" value="${esc(it ? (it.fonte === "insegnante" || it.fonte === "file" ? it.nota : "") : "")}" placeholder="Sua nota (facoltativa)"></div>`;
       }).join("")
       + `</div></div>`;
   });
@@ -1687,8 +1745,12 @@ function revAction(btn) {
   updateTabBadges(); renderPanel(); updateValidStatus(); renderReview(); aggiornaStatoConvalida();
 }
 
+const TESTO_REVISIONE_COLLOQUIO = document.getElementById("reviewLead").textContent;
+const TESTO_REVISIONE_FILE = "Questo è il profilo ICF caricato dal file di ICF Applicazioni. Controlli ogni voce e ogni nota: può correggere i valori, aggiungere ciò che manca e togliere ciò che non La convince; le note del file si leggono e si modificano nella colonna «Nota». Solo dopo la Sua convalida potrà generare la bozza di PEI.";
 function openReview(thenGenerate) {
   reviewThenGenerate = !!thenGenerate;
+  document.getElementById("reviewLead").textContent = questionarioImportato ? TESTO_REVISIONE_FILE : TESTO_REVISIONE_COLLOQUIO;
+  document.getElementById("reviewBackBtn").textContent = questionarioImportato ? "Chiudi" : "Torna al colloquio";
   const bd = document.getElementById("reviewBackdrop");
   if (!haDati()) {
     document.getElementById("reviewBody").innerHTML = '<div class="review-sum">Non c\'è ancora nulla da convalidare: prosegua il colloquio e racconti l\'alunno. Quando il profilo si sarà riempito potrà rivederlo qui.</div>';
@@ -1725,11 +1787,76 @@ document.getElementById("reviewBody").addEventListener("change", (e) => {
 document.getElementById("reviewBody").addEventListener("click", (e) => { const b = e.target.closest("[data-act]"); if (b) revAction(b); });
 updateValidStatus();
 
+// ── Caricamento di un questionario già compilato con ICF Applicazioni ────────
+// Dal file si estrae solo ciò che serve (vedi icf-import.js); poi si passa direttamente alla revisione e alla convalida.
+let importPendente = null, placeholderChat = null, questionarioImportato = false;
+function importaQuestionario(event) {
+  const file = event.target.files[0]; event.target.value = "";
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onerror = () => alert("Non riesco a leggere il file: riprovi, o scelga un altro file.");
+  reader.onload = (e) => {
+    let json;
+    try { json = JSON.parse(e.target.result); } catch (err) { alert("Il file non è un JSON valido: controlli di aver scelto il file giusto, esportato da ICF Applicazioni."); return; }
+    const r = ICFImport.estraiDaQuestionario(json);
+    if (!r.ok) { alert(r.errore); return; }
+    importPendente = r; mostraImport(r);
+  };
+  reader.readAsText(file);
+}
+function mostraImport(r) {
+  const p = r.report;
+  let h = `<strong>${esc(p.tipologia || "Questionario ICF-Scuola")}</strong>${p.data ? " del " + esc(p.data) : ""}.<ul>`;
+  h += `<li>Attività e partecipazione: <strong>${p.dImportati} item su 47</strong>${p.dIgnorati ? ` (altri ${p.dIgnorati} item della versione completa non fanno parte del questionario breve: non importati)` : ""}</li>`;
+  h += `<li>Funzioni corporee: ${p.bImportate} · Strutture corporee: ${p.sImportate}</li><li>Fattori ambientali: ${p.faImportati} · Fattori personali: ${p.fpImportati}</li>`;
+  if (p.bScartate.length) h += `<li>Non previsti dagli allegati, non importati: ${esc(p.bScartate.join(", "))}</li>`;
+  h += "</ul>" + p.avvisi.map(a => `<div class="imp-s">• ${esc(a)}</div>`).join("");
+  document.getElementById("impSum").innerHTML = h;
+  const m = document.getElementById("impMancanti");
+  m.style.display = p.dMancanti.length ? "block" : "none";
+  m.innerHTML = p.dMancanti.length ? `<strong>Mancano ${p.dMancanti.length} item d</strong>: ${p.dMancanti.map(x => esc(x.label)).join(", ")}. Potrà completarli nella revisione; senza tutti gli item d la convalida non è possibile.` : "";
+  document.getElementById("impNomiBox").style.display = r.nomiPossibili.length ? "block" : "none";
+  document.getElementById("impNomiList").innerHTML = r.nomiPossibili.map(n => `<label class="imp-chk"><input type="checkbox" data-nome="${esc(n.nome)}" checked> «${esc(n.nome)}» compare ${n.occorrenze} ${n.occorrenze === 1 ? "volta" : "volte"} nelle note</label>`).join("");
+  document.getElementById("impNome").value = ""; document.getElementById("impEta").value = ""; document.getElementById("impAltri").value = ""; document.getElementById("impErr").textContent = "";
+  document.getElementById("importBackdrop").classList.add("show");
+  setTimeout(() => document.getElementById("impNome").focus(), 50);
+}
+const plur = (n, s, p) => `${n} ${n === 1 ? s : p}`;
+function annullaImport() { importPendente = null; document.getElementById("importBackdrop").classList.remove("show"); }
+function impostaModalitaImport(attiva) {
+  const ta = document.getElementById("userInput"), send = document.getElementById("sendBtn"), mic = document.getElementById("micBtn");
+  if (placeholderChat === null) placeholderChat = ta.placeholder;
+  questionarioImportato = attiva;
+  ta.disabled = attiva; send.disabled = attiva; mic.disabled = attiva || !micSupportato();
+  ta.placeholder = attiva ? "Questionario importato dal file: lo riveda e lo convalidi dal pannello a destra" : placeholderChat;
+}
+function confermaImport() {
+  if (!importPendente) return;
+  const nome = document.getElementById("impNome").value.trim(), err = document.getElementById("impErr");
+  if (!nome) { err.textContent = "Inserisca un nome di fantasia o una sigla per l'alunno."; document.getElementById("impNome").focus(); return; }
+  const spuntati = [...document.querySelectorAll("#impNomiList input:checked")].map(x => x.dataset.nome);
+  const altri = document.getElementById("impAltri").value.split(",").map(x => x.trim()).filter(Boolean);
+  const { stato, sostituzioni } = ICFImport.sostituisciNomi(importPendente.stato, [...spuntati, ...altri], nome);
+  const eta = document.getElementById("impEta").value.trim();
+  anagrafica = { ...stato.anagrafica, nome, ...(/^\d{1,2}$/.test(eta) ? { eta } : {}) };
+  profile = stato.profile; bItems = stato.bItems; sItems = stato.sItems; fpItems = stato.fpItems;
+  history = []; turno = 0; lastUserText = ""; validatedHash = null; validatedAt = null; chatStarted = true;
+  const p = importPendente.report; importPendente = null;
+  document.getElementById("importBackdrop").classList.remove("show");
+  document.getElementById("welcome").classList.add("hidden");
+  document.getElementById("messages").innerHTML = ""; document.getElementById("quickReplies").innerHTML = "";
+  impostaModalitaImport(true);
+  addMessage("ai", `Ho caricato il questionario dal file di ICF Applicazioni: ${p.dImportati} item su 47 di attività e partecipazione, ${plur(p.bImportate, "funzione corporea", "funzioni corporee")}, ${plur(p.sImportate, "struttura corporea", "strutture corporee")}, ${plur(p.faImportati, "fattore ambientale", "fattori ambientali")} e ${plur(p.fpImportati, "fattore personale", "fattori personali")}${sostituzioni ? `; nelle note ho sostituito ${sostituzioni} ${sostituzioni === 1 ? "nome" : "nomi"} con «${esc(nome)}»` : ""}.<br><br>Il dialogo non serve: riveda ogni voce nella finestra di revisione, la convalidi e generi la bozza di PEI. Se chiude la finestra, la riapra con «Rivedere e convalidare il questionario» nel pannello a destra.`);
+  currentProgress = 0; updateProgress(0); updateTabBadges(); renderPanel(); updateValidStatus();
+  openReview(true);
+}
+
 // ── Avvio del dialogo: solo dopo il clic su «Inizia» ─────────────────────────
 // Porta funzioni e strutture dello stato agli item degli allegati (dati di bozze o file precedenti)
 function sanitizzaBS() {
   const b = ICFBS.normalizzaVoci(bItems, "b"), s = ICFBS.normalizzaVoci(sItems, "s");
   bItems = b.voci; sItems = s.voci;
+  normalizzaFattoriProfilo(profile);   // bozze e file di sessioni precedenti: effetti numerici → scala della piattaforma
   return b.scartati.length + s.scartati.length;
 }
 

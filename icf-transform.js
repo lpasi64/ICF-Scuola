@@ -160,6 +160,27 @@ function buildCodiciIcf(profile) {
   return out;
 }
 
+// Qualificatore di un fattore ambientale nella notazione della piattaforma ICF Applicazioni, quella che il generatore del PEI legge:
+// F++ facilitatore importante, F- facilitatore presente ma non sufficiente a compensare i limiti delle capacità, B- barriera media,
+// B+ barriera elevata, B++ facilitatore necessario ma assente. Non esistono altri simboli (F+ compreso).
+// I simboli passano invariati; la scala numerica delle vecchie bozze (+4…+1 facilitatori, 1…4 barriere) si converte sui due livelli
+// di facilitatore della piattaforma; «nessun effetto» o un valore non riconosciuto non danno alcun qualificatore.
+function qualificatoreFattore(effect) {
+  const e = String(effect === null || effect === undefined ? "" : effect).trim();
+  if (["F++", "F-", "B-", "B+", "B++"].includes(e)) return e;
+  return { "+4": "F++", "+3": "F++", "+2": "F-", "+1": "F-", "1": "B-", "2": "B-", "3": "B+", "4": "B++" }[e] || null;
+}
+
+// Porta alla scala della piattaforma gli effetti dei fattori ambientali di un profilo (risposte dell'AI, bozze e sessioni precedenti):
+// i simboli restano, i numeri si convertono, il resto (nessun effetto, valori non riconosciuti) diventa «da completare». Modifica il profilo.
+function normalizzaFattoriProfilo(profile) {
+  if (!profile || typeof profile !== "object") return profile;
+  Object.values(profile).forEach(d => {
+    if (d && Array.isArray(d.faItems)) d.faItems.forEach(fa => { if (fa && typeof fa === "object") fa.effect = qualificatoreFattore(fa.effect) || ""; });
+  });
+  return profile;
+}
+
 // Costruisce il blocco domini_icf (titolo, elenco codici statico, fattori ambientali raccolti).
 // Nota: qui i fattori ambientali sono esposti come lista {codice,label,effetto} per dominio —
 // non riproducono la categorizzazione F++/F-/B-/B+/B++ vista in altri export (sintesi editoriale
@@ -172,7 +193,10 @@ function buildDominiIcf(profile) {
     out[key] = {
       titolo: DOMINI_TITOLI[domain.id],
       codici: domain.items.map(i => i.code),
-      fattori_ambientali: faItems.map(fa => ({ codice: fa.code, label: fa.label || fa.code, effetto: fa.effect || null }))
+      fattori_ambientali: faItems.map(fa => {
+        const q = qualificatoreFattore(fa.effect);
+        return { codice: fa.code, label: fa.label || fa.code, effetto: fa.effect || null, ...(q ? { performance: q } : {}) };   // «performance»: il campo che il generatore del PEI legge
+      })
     };
   });
   return out;
@@ -363,7 +387,7 @@ const ICFTransform = {
   ICF_DOMAINS, DOMINI_TITOLI, ITEM_DESCRIZIONI, ITEM_DIMENSIONE_PEI, DIMENSIONE_LABELS, SCALA,
   totalItemCount, buildCodiciIcf, buildDominiIcf, buildSintesiAutomatica, countCompletion,
   getMissingItems, getMissingByDomain, buildFinalExportData,
-  labelForCode, riepilogaAggiornamento, marcaEvidenza, impronta,
+  labelForCode, riepilogaAggiornamento, marcaEvidenza, impronta, qualificatoreFattore, normalizzaFattoriProfilo,
   sembraChiusura, testoRichiamoCompletezza, MESSAGGIO_QUESTIONARIO_COMPLETO, convalidaPossibile
 };
 
