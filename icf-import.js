@@ -86,9 +86,11 @@ function estraiDaQuestionario(json) {
       const code = testo(f.icf).toLowerCase(), q = testo(f.performance), nota = testo(f.note);
       const valido = SIMBOLI_FATTORE.includes(q);
       if (/^i\d/.test(code)) {
-        // fattori personali elencati dalla piattaforma tra i fattori ambientali
+        // fattori personali elencati dalla piattaforma tra i fattori ambientali: si valutano dopo ogni dominio, quindi
+        // se ne tiene uno per codice e per dominio (la stessa abitudine può contare in un'area e non in un'altra)
         if (!valido && !nota) return;
-        const x = fpPerCodice[code] = fpPerCodice[code] || { code, label: testo(f.descrizione) || code, note: "", qualificatore: valido ? q : "" };
+        const chiave = code + "|" + idDominio;
+        const x = fpPerCodice[chiave] = fpPerCodice[chiave] || { code, label: testo(f.descrizione) || code, note: "", qualificatore: valido ? q : "", dominio: idDominio };
         if (nota && !x.note.split("; ").includes(nota)) x.note = x.note ? x.note + "; " + nota : nota;
         return;
       }
