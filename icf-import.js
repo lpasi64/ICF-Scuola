@@ -10,8 +10,9 @@ const T = globalThis.ICFTransform, BS = globalThis.ICFBS;
 const { ICF_DOMAINS, getMissingItems, labelForCode, qualificatoreFattore } = T;
 
 const SCALA_VALIDA = [0, 1, 2, 3, 4, 9];
-// La scala dei fattori ambientali della piattaforma: F++ facilitatore importante, F- facilitatore presente ma non sufficiente a
-// compensare i limiti delle capacità, B- barriera media, B+ barriera elevata, B++ facilitatore necessario ma assente.
+// La scala dei fattori ambientali della piattaforma (legenda del profilo di funzionamento): F++ facilitatore presente ed efficace,
+// F- facilitatore presente ma non sufficiente a compensare i limiti delle capacità, B- barriera (fattore presente ma non
+// necessario, che impedisce di fare in autonomia ciò che l'alunno sa fare), B+ barriera attiva (fattore presente e non efficace), B++ facilitatore necessario ma non presente.
 const SIMBOLI_FATTORE = ["F++", "F-", "B-", "B+", "B++"];
 const DOMINIO_DI_ITEM = {};
 ICF_DOMAINS.forEach(d => d.items.forEach(i => { DOMINIO_DI_ITEM[i.code] = d.id; }));
