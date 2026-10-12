@@ -311,6 +311,33 @@ function buildFinalExportData({ anagrafica = {}, profile = {}, bItems = [], sIte
   };
 }
 
+// Bozza di lavoro salvata sul computer («Salva bozza sul PC»): il file di esportazione nel formato atteso a valle, più la chiave «bozza»
+// con lo stato interno (anagrafica, profilo, funzioni, strutture, fattori personali, conversazione) che serve a riaprirla.
+// La chiave «bozza» non fa parte dei dati inviati al generatore del PEI (quelli vengono da buildFinalExportData).
+function bozzaPerFile({ anagrafica = {}, profile = {}, bItems = [], sItems = [], fpItems = [], history = [], importato = false }) {
+  return {
+    ...buildFinalExportData({ anagrafica, profile, bItems, sItems, fpItems }),
+    bozza: { versione: 1, anagrafica, profilo: profile, funzioniCorporee: bItems, struttureCorporee: sItems, fattoriPersonali: fpItems, _history: history, importato: !!importato }
+  };
+}
+
+// Legge il file di una bozza: stato interno oppure null se il file non è una bozza (così non si «carica» uno stato vuoto in silenzio).
+// Riconosce anche il formato delle sessioni salvate in precedenza (chiavi allo stesso livello, senza «bozza»).
+function leggiBozza(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const b = data.bozza && typeof data.bozza === "object" ? data.bozza : (data.profilo && typeof data.profilo === "object" ? data : null);
+  if (!b) return null;
+  return {
+    anagrafica: b.anagrafica || {},
+    profile: b.profilo || {},
+    bItems: b.funzioniCorporee || [],
+    sItems: b.struttureCorporee || [],
+    fpItems: b.fattoriPersonali || [],
+    history: Array.isArray(b._history) ? b._history : [],
+    importato: b.importato === true
+  };
+}
+
 // ── Evidenza: come ciò che l'utente dice o scrive diventa ICF ─────────────────
 // Etichetta ufficiale di un item del questionario (il codice stesso se non è tra i 47)
 function labelForCode(code) {
@@ -388,7 +415,7 @@ const MESSAGGIO_QUESTIONARIO_COMPLETO = "Abbiamo raccolto tutti gli elementi del
 const ICFTransform = {
   ICF_DOMAINS, DOMINI_TITOLI, ITEM_DESCRIZIONI, ITEM_DIMENSIONE_PEI, DIMENSIONE_LABELS, SCALA,
   totalItemCount, buildCodiciIcf, buildDominiIcf, buildSintesiAutomatica, countCompletion,
-  getMissingItems, getMissingByDomain, buildFinalExportData,
+  getMissingItems, getMissingByDomain, buildFinalExportData, bozzaPerFile, leggiBozza,
   labelForCode, riepilogaAggiornamento, marcaEvidenza, impronta, qualificatoreFattore, normalizzaFattoriProfilo,
   sembraChiusura, testoRichiamoCompletezza, MESSAGGIO_QUESTIONARIO_COMPLETO, convalidaPossibile
 };
