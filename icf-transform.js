@@ -90,25 +90,27 @@ const ITEM_DESCRIZIONI = {
   d9200: "Partecipare ad attività di gioco, spontanee o strutturate"
 };
 
-// Mappa fissa codice → dimensione PEI (A/B/C/D/non_mappata), indipendente dal caso.
+// Mappa fissa codice → dimensione PEI (A/B/C/D), indipendente dal caso. Raggruppamento delle Linee guida sul profilo di funzionamento
+// (lo stesso del profilo di ICF Applicazioni e del calcolo degli esiti nel generatore del PEI, pei-dimensioni.js):
+//   A relazione, interazione e socializzazione = d7*, d9*     B comunicazione e linguaggio = d3*
+//   C autonomia e orientamento = d2*, d4*, d5*, d6*           D cognitiva, neuropsicologica e dell'apprendimento = d1*, d8*
 const ITEM_DIMENSIONE_PEI = {
-  d137:"D", d138:"D", d155:"D", d160:"D", d166:"D", d170:"D", d172:"D", d175:"D", d177:"D", d179:"C",
-  d210:"D", d220:"D", d230:"D", d240:"D",
+  d137:"D", d138:"D", d155:"D", d160:"D", d166:"D", d170:"D", d172:"D", d175:"D", d177:"D", d179:"D",
+  d210:"C", d220:"C", d230:"C", d240:"C",
   d310:"B", d315:"B", d320:"B", d330:"B", d335:"B", d340:"B", d349:"B", d350:"B", d360:"B",
   d430:"C", d440:"C", d450:"C", d460:"C", d465:"C", d470:"C",
   d510:"C", d530:"C", d540:"C", d550:"C", d570:"C",
   d6308:"C", d6408:"C",
   d710:"A", d720:"A", d730:"A", d750:"A",
-  d820:"non_mappata", d835:"non_mappata", d840:"non_mappata", d860:"C",
-  d910:"A", d920:"non_mappata", d9200:"non_mappata"
+  d820:"D", d835:"D", d840:"D", d860:"D",
+  d910:"A", d920:"A", d9200:"A"
 };
 
 const DIMENSIONE_LABELS = {
   A: "Relazione, interazione e socializzazione",
   B: "Comunicazione e linguaggio",
   C: "Autonomia e orientamento",
-  D: "Cognitiva, neuropsicologica e dell'apprendimento",
-  non_mappata: "Non riconducibili in modo esclusivo a una dimensione (partecipazione scolastica, FSL, tempo libero/gioco)"
+  D: "Cognitiva, neuropsicologica e dell'apprendimento"
 };
 
 const SCALA = {
@@ -117,7 +119,7 @@ const SCALA = {
   valori: "0 ottimale/sempre | 1 molto bene/spesso | 2 abbastanza bene/qualche volta | 3 non bene/raramente | 4 per nulla/mai | 9 non applicabile"
 };
 
-const NOTA_PER_PROMPT = "Usare PF come indicatore principale del funzionamento reale; usare CAP e il gap CAP-PF per leggere il potenziale e l'influenza del contesto. Le dimensioni con esito \"Va definita\" indicano le aree su cui programmare obiettivi di PEI.";
+const NOTA_PER_PROMPT = "Usare PF come indicatore principale del funzionamento reale; usare CAP e il gap CAP-PF per leggere il potenziale e l'influenza del contesto. Le dimensioni con esito \"VA DEFINITA\" indicano le aree su cui programmare obiettivi di PEI.";
 
 function totalItemCount() {
   return ICF_DOMAINS.reduce((n, d) => n + d.items.length, 0);
@@ -151,7 +153,7 @@ function buildCodiciIcf(profile) {
         performance,
         capacita,
         gap_C_meno_P: gapValida ? capacita - performance : null,
-        dimensione_pei: ITEM_DIMENSIONE_PEI[code] || "non_mappata",
+        dimensione_pei: ITEM_DIMENSIONE_PEI[code] || null,
         nota: (found && found.nota) || "",
         fonte: found ? (found.fonte || "colloquio") : null
       };
@@ -161,14 +163,15 @@ function buildCodiciIcf(profile) {
 }
 
 // Qualificatore di un fattore ambientale nella notazione della piattaforma ICF Applicazioni, quella che il generatore del PEI legge:
-// F++ facilitatore importante, F- facilitatore presente ma non sufficiente a compensare i limiti delle capacità, B- barriera media,
-// B+ barriera elevata, B++ facilitatore necessario ma assente. Non esistono altri simboli (F+ compreso).
-// I simboli passano invariati; la scala numerica delle vecchie bozze (+4…+1 facilitatori, 1…4 barriere) si converte sui due livelli
-// di facilitatore della piattaforma; «nessun effetto» o un valore non riconosciuto non danno alcun qualificatore.
+// F++ facilitatore presente ed efficace, F- facilitatore presente ma non sufficiente a compensare i limiti delle capacità, B- barriera
+// (fattore presente ma non necessario, che frena l'autonomia), B+ barriera attiva (presente e non efficace), B++ facilitatore necessario ma non presente. Non esistono
+// altri simboli (F+ compreso). I simboli passano invariati; la scala numerica delle vecchie bozze (+4…+1 facilitatori, 1…4 barriere)
+// si converte sui due livelli di facilitatore e sulla barriera attiva della piattaforma; «nessun effetto» o un valore non riconosciuto
+// non danno alcun qualificatore.
 function qualificatoreFattore(effect) {
   const e = String(effect === null || effect === undefined ? "" : effect).trim();
   if (["F++", "F-", "B-", "B+", "B++"].includes(e)) return e;
-  return { "+4": "F++", "+3": "F++", "+2": "F-", "+1": "F-", "1": "B-", "2": "B-", "3": "B+", "4": "B++" }[e] || null;
+  return { "+4": "F++", "+3": "F++", "+2": "F-", "+1": "F-", "1": "B+", "2": "B+", "3": "B+", "4": "B+" }[e] || null;
 }
 
 // Porta alla scala della piattaforma gli effetti dei fattori ambientali di un profilo (risposte dell'AI, bozze e sessioni precedenti):
@@ -202,13 +205,13 @@ function buildDominiIcf(profile) {
   return out;
 }
 
-// Calcola le statistiche per dimensione PEI (A/B/C/D/non_mappata) dagli item già costruiti.
+// Calcola le statistiche per dimensione PEI (A/B/C/D) dagli item già costruiti.
 // Gli item con performance 9 (non applicabile) o non ancora valutati (null) sono esclusi dalle
 // statistiche numeriche ma restano elencati in "codes" — stesso comportamento osservato
 // nell'esempio di riferimento (es. dimensione B: 9 codici in elenco, n=7 perché 2 sono 9/9).
 function buildSintesiAutomatica(codiciIcf) {
   const dimensioni_pei = {};
-  ["A", "B", "C", "D", "non_mappata"].forEach(dim => {
+  ["A", "B", "C", "D"].forEach(dim => {
     const codes = Object.keys(ITEM_DIMENSIONE_PEI).filter(c => ITEM_DIMENSIONE_PEI[c] === dim);
     const rated = codes
       .map(c => codiciIcf[c])
@@ -217,10 +220,9 @@ function buildSintesiAutomatica(codiciIcf) {
     const sumP = rated.reduce((s, it) => s + it.performance, 0);
     const maxP = n ? Math.max(...rated.map(it => it.performance)) : 0;
     const mediaP = n ? Math.round((sumP / n) * 100) / 100 : null;
-    // Euristica semplice e dichiarata: sotto soglia 1.5 di media PF si propone "Monitorare",
-    // altrimenti "Va definita". Il Generatore PEI ricalcola comunque queste dimensioni con un
-    // proprio modello, quindi questo valore è un default di comodo, non l'unica fonte di verità.
-    const esito_proposto = n === 0 ? "Non valutabile" : (mediaP >= 1.5 ? "Va definita" : "Monitorare");
+    // Stessa regola del calcolo degli esiti nel generatore del PEI (pei-dimensioni.js): media di P ≥ 1,5 → VA DEFINITA, altrimenti OMISSIBILE
+    // (confronto esatto su somma e numero di item, senza arrotondamenti).
+    const esito_proposto = n === 0 ? "Non valutabile" : (2 * sumP >= 3 * n ? "VA DEFINITA" : "OMISSIBILE");
     dimensioni_pei[dim] = { label: DIMENSIONE_LABELS[dim], codes, sumP, n, maxP, mediaP, esito_proposto };
   });
 

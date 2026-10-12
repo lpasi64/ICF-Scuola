@@ -1597,7 +1597,7 @@ function addEvidenza(reg, frase) {
 
 // ── Revisione e convalida ────────────────────────────────────────────────────
 const SCALA_OPT = [["", "—"], ["0", "0 · nessuna"], ["1", "1 · lieve"], ["2", "2 · media"], ["3", "3 · grave"], ["4", "4 · completa"], ["9", "9 · non applicabile"]];
-const EFFETTO_OPT = [["", "—"], ["F++", "F++ facilitatore importante"], ["F-", "F- presente ma non sufficiente a compensare i limiti"], ["B-", "B- barriera media"], ["B+", "B+ barriera elevata"], ["B++", "B++ facilitatore necessario ma assente"]];   // la scala della piattaforma: i valori numerici di bozze vecchie si convertono (normalizzaFattoriProfilo)
+const EFFETTO_OPT = [["", "—"], ["F++", "F++ facilitatore presente ed efficace"], ["F-", "F- presente ma non sufficiente a compensare i limiti"], ["B-", "B- barriera: presente ma non necessario, frena l'autonomia"], ["B+", "B+ barriera attiva (presente e non efficace)"], ["B++", "B++ facilitatore necessario ma non presente"]];   // la scala della piattaforma: i valori numerici di bozze vecchie si convertono (normalizzaFattoriProfilo)
 function selHtml(attrs, val, opts) {
   const v = String(val ?? "");
   const lista = opts.some(o => o[0] === v) ? opts : [...opts, [v, v]];
