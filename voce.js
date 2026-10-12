@@ -5,7 +5,7 @@
 const ORDINALI_M = ["", "primo", "secondo", "terzo", "quarto", "quinto", "sesto", "settimo", "ottavo", "nono", "decimo"];
 const ORDINALI_F = ["", "prima", "seconda", "terza", "quarta", "quinta", "sesta", "settima", "ottava", "nona", "decima"];
 // Sigle che l'AI e i documenti usano spesso: scandite lettera per lettera, come le direbbe una persona
-const SIGLE = ["ICF", "PEI", "GLO", "DSA", "ADHD", "ASD", "PCTO", "FSL", "MIM", "PF", "BES", "PDF", "IA", "PDP", "PFI"];
+const SIGLE = ["ICF", "GLO", "DSA", "ADHD", "ASD", "PCTO", "FSL", "MIM", "PF", "BES", "PDF", "IA", "PDP", "PFI"];
 const RX_SIGLE = new RegExp("\\b(" + SIGLE.join("|") + ")\\b", "g");
 
 // Testo come lo leggerebbe una persona: niente simboli letti ad alta voce, forme con la barra per esteso, sigle scandite
@@ -27,6 +27,7 @@ function preparaTestoVocale(input) {
   t = t.replace(/(\d+)\s?%/g, "$1 per cento");
   t = t.replace(/(\d+)ª/g, (m, n) => (+n >= 1 && +n <= 10 ? ORDINALI_F[+n] : n));
   t = t.replace(/(\d+)\s?[°º]/g, (m, n) => (+n >= 1 && +n <= 10 ? ORDINALI_M[+n] : n));
+  t = t.replace(/\bPEI APP\b/g, "Piano Educativo Individualizzato app").replace(/\bPEI\b/g, "Piano Educativo Individualizzato");   // scandita lettera per lettera suona inglese: meglio la forma estesa
   t = t.replace(RX_SIGLE, (s) => s.split("").join(" "));
   // pause al posto dei simboli
   t = t.replace(/\s[—–-]\s|[—–]/g, ", ").replace(/[·•]/g, ", ").replace(/[()\[\]]/g, ", ").replace(/…/g, ".");

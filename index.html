@@ -128,8 +128,10 @@
   .d-fa{background:#F8F8F8}.d-fa .domain-hdr{background:#EBEBEB;color:#374151}.d-fa .domain-badge{background:#374151;color:white}
 
   .empty-state { font-size: 0.78rem; color: var(--text-muted); text-align: center; padding: 24px 12px; line-height: 1.6; }
-  .export-area { padding: 10px 14px; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; gap: 8px; }
-  .export-btn { flex: 1; padding: 8px; border: none; border-radius: 8px; font-size: 0.76rem; font-weight: 600; cursor: pointer; font-family: 'Inter',sans-serif; transition: background 0.15s; }
+  .export-area { padding: 10px 14px; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  .autosave-note { flex: 1 1 100%; font-size: 0.68rem; color: var(--text-muted); text-align: center; min-height: 0; }
+  .autosave-note:empty { display: none; }
+  .export-btn { flex: 1 1 40%; padding: 8px; border: none; border-radius: 8px; font-size: 0.76rem; font-weight: 600; cursor: pointer; font-family: 'Inter',sans-serif; transition: background 0.15s; }
   .btn-json { background: var(--green); color: white; }
   .btn-json:hover { background: #155C30; }
   .btn-reset { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
@@ -451,7 +453,7 @@
       <button class="btn-start" onclick="closeWelcome()" id="startBtn">Inizia</button>
     </div>
     <div class="welcome-import">
-      <button class="btn-import" onclick="document.getElementById('importInput').click()">📂 Carica un questionario già compilato</button>
+      <button class="btn-import" onclick="document.getElementById('importInput').click()">📂 Carica un questionario compilato con ICF Applicazioni</button>
       <span>Ha già compilato il questionario con ICF Applicazioni? Carichi il file JSON (breve o completo): il dialogo si salta e si passa direttamente alla revisione, alla convalida e alla bozza di PEI.</span>
       <input type="file" id="importInput" accept=".json,application/json" style="display:none" onchange="importaQuestionario(event)">
     </div>
@@ -504,7 +506,7 @@
 
     <div class="info-sec">
       <h3>📂 Se il questionario è già compilato</h3>
-      <p>Se ha compilato il questionario con ICF Applicazioni, dalla schermata iniziale può caricare il file JSON (versione breve o completa) con «Carica un questionario già compilato»: si salta il dialogo. Dal file si estraggono solo i dati utili al PEI (gli item del questionario breve, le funzioni e strutture previste dagli allegati, fattori ambientali e personali); gli item in più della versione completa e gli identificativi del file non si importano. Il nome dell'alunno non è nel file: Lei indica un nome di fantasia e può far sostituire i nomi citati nelle note. Poi si passa alla revisione, alla convalida e alla bozza di PEI.</p>
+      <p>Se ha compilato il questionario con ICF Applicazioni, dalla schermata iniziale può caricare il file JSON (versione breve o completa) con «Carica un questionario compilato con ICF Applicazioni»: si salta il dialogo. Dal file si estraggono solo i dati utili al PEI (gli item del questionario breve, le funzioni e strutture previste dagli allegati, fattori ambientali e personali); gli item in più della versione completa e gli identificativi del file non si importano. Il nome dell'alunno non è nel file: Lei indica un nome di fantasia e può far sostituire i nomi citati nelle note. Poi si passa alla revisione, alla convalida e alla bozza di PEI.</p>
     </div>
 
     <div class="info-sec privacy">
@@ -625,10 +627,11 @@
       <div class="empty-state">Il profilo si costruirà man mano che avanziamo nel dialogo.</div>
     </div>
     <div class="export-area">
-      <button class="export-btn btn-draft" onclick="saveDraft()" title="Salva bozza nel browser">💾 Bozza</button>
-      <button class="export-btn btn-load" onclick="document.getElementById('loadInput').click()" title="Carica JSON precedente">📂 Carica</button>
-      <button class="export-btn btn-json" onclick="exportJSON()">⬇ JSON</button>
+      <button class="export-btn btn-draft" onclick="saveDraft()" title="Salva subito il lavoro in questo browser (il salvataggio avviene comunque in automatico ogni pochi secondi). Non crea alcun file sul computer.">💾 Salva nel browser</button>
+      <button class="export-btn btn-load" onclick="document.getElementById('loadInput').click()" title="Riapre un file salvato con «Salva JSON sul PC». Per un questionario compilato con ICF Applicazioni usi il pulsante della schermata iniziale.">📂 Carica JSON dal PC</button>
+      <button class="export-btn btn-json" onclick="exportJSON()" title="Scarica sul computer un file JSON con il questionario in corso: potrà riaprirlo più tardi con «Carica JSON dal PC»">⬇ Salva JSON sul PC</button>
       <button class="export-btn btn-reset" onclick="resetSession()">↺ Nuovo</button>
+      <div class="autosave-note" id="autosaveNote" aria-live="polite"></div>
     </div>
     <div class="validate-area">
       <div class="valid-status" id="validStatus">Il questionario non è ancora convalidato: prima di generare il PEI va rivisto da Lei.</div>
@@ -684,7 +687,7 @@
 </div>
 
 <script src="icf-transform.js?v=20261013"></script>
-<script src="voce.js?v=20261010"></script>
+<script src="voce.js?v=20261012"></script>
 <script src="icf-bs.js?v=20261011"></script>
 <script src="icf-import.js?v=20261013"></script>
 <script>
@@ -692,7 +695,7 @@ const PROXY_URL = "https://icf-scuola-production.up.railway.app";
 
 // Elenco domini/item e funzioni di trasformazione: unica fonte in icf-transform.js
 // (condivisa col test automatico test-icf-transform.js).
-const { ICF_DOMAINS, countCompletion, getMissingByDomain, buildFinalExportData } = ICFTransform;
+const { ICF_DOMAINS, countCompletion, getMissingByDomain, buildFinalExportData, bozzaPerFile, leggiBozza } = ICFTransform;
 
 // System prompt gestito lato server
 
@@ -965,7 +968,8 @@ function getSessionData() {
     struttureCorporee: sItems,
     fattoriPersonali: fpItems,
     profilo: profile,
-    _history: history
+    _history: history,
+    importato: questionarioImportato
   };
 }
 
@@ -973,11 +977,43 @@ function saveDraft() {
   try {
     const data = getSessionData();
     localStorage.setItem("icf_draft", JSON.stringify(data));
-    showToast("💾 Bozza salvata nel browser");
+    ultimoSalvato = JSON.stringify({ ...data, generato: null });
+    mostraAutosalvataggio();
+    showToast("💾 Salvato nel browser");
   } catch(e) {
     showToast("❌ Errore nel salvataggio");
   }
 }
+
+// Salvataggio automatico nel browser: ogni pochi secondi, quando si lascia la pagina e quando si cambia scheda, ma solo se il colloquio
+// è avviato, c'è qualcosa da salvare e qualcosa è cambiato dall'ultimo salvataggio. Resta in questo browser (come il pulsante «Salva nel browser»).
+let ultimoSalvato = null;
+function haContenuto() {
+  // il primo messaggio dell'utente è quello automatico di avvio del dialogo: da solo non è lavoro da conservare
+  return history.filter(m => m && m.role === "user").length > 1 || bItems.length > 0 || sItems.length > 0 || fpItems.length > 0 || Object.keys(profile).length > 0 || Object.keys(anagrafica).length > 0;
+}
+function autosalva() {
+  if (!chatStarted || !haContenuto()) return;
+  try {
+    const data = getSessionData();
+    const chiave = JSON.stringify({ ...data, generato: null });
+    if (chiave === ultimoSalvato) return;
+    localStorage.setItem("icf_draft", JSON.stringify(data));
+    ultimoSalvato = chiave;
+    mostraAutosalvataggio();
+  } catch (e) { /* archivio del browser pieno o non disponibile: resta il file con «Salva JSON sul PC» */ }
+}
+function mostraAutosalvataggio() {
+  const el = document.getElementById("autosaveNote");
+  if (el) el.textContent = "Salvato nel browser alle " + new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+}
+function mostraAutosalvataggioVuoto() {
+  const el = document.getElementById("autosaveNote");
+  if (el) el.textContent = "";
+}
+setInterval(autosalva, 4000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") autosalva(); });
+window.addEventListener("pagehide", autosalva);
 
 function loadJSON(event) {
   const file = event.target.files[0];
@@ -985,26 +1021,32 @@ function loadJSON(event) {
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const data = JSON.parse(e.target.result);
+      const b = leggiBozza(JSON.parse(e.target.result));
+      if (!b) {
+        // Non è una bozza salvata con «Salva JSON sul PC»: non si carica uno stato vuoto, si spiega dove va caricato il file
+        alert("Questo file non è stato salvato da PEI APP con «Salva JSON sul PC».\n\nSe è un questionario compilato con ICF Applicazioni, lo carichi con «Carica un questionario compilato con ICF Applicazioni» nella schermata iniziale (si apre con «Nuovo»).");
+        return;
+      }
       // Ripristina stato
-      anagrafica = data.anagrafica || {};
-      bItems = data.funzioniCorporee || [];
-      sItems = data.struttureCorporee || [];
-      fpItems = data.fattoriPersonali || [];
-      profile = data.profilo || {};
+      anagrafica = b.anagrafica; bItems = b.bItems; sItems = b.sItems; fpItems = b.fpItems; profile = b.profile;
       sanitizzaBS(); chatStarted = true; validatedHash = null;   // un file caricato va rivisto e convalidato
+      document.getElementById("welcome").classList.add("hidden");
       // Ripristina conversazione se presente
-      if (data._history && data._history.length) {
-        history = data._history;
-        // Mostra un riepilogo in chat
+      impostaModalitaImport(b.importato);
+      if (b.importato) {
+        history = [];
         document.getElementById("messages").innerHTML = "";
-        addMessage("ai", "Ho caricato la sessione precedente. Possiamo riprendere il colloquio da dove eravamo.");
+        addMessage("ai", "Ho caricato il file salvato sul computer: è un questionario importato da ICF Applicazioni, quindi il dialogo non serve. Lo riveda nella finestra di revisione, lo convalidi e generi la bozza di PEI.");
+      } else if (b.history.length) {
+        history = b.history;
+        document.getElementById("messages").innerHTML = "";
+        addMessage("ai", "Ho caricato il file salvato sul computer. Possiamo riprendere il colloquio da dove eravamo.");
       }
       currentProgress = Object.keys(profile).length;
       updateProgress(currentProgress);
       updateTabBadges();
       renderPanel(); updateValidStatus();
-      showToast("📂 Sessione caricata");
+      showToast("📂 Bozza caricata dal file");
     } catch(err) {
       showToast("❌ File non valido");
     }
@@ -1026,7 +1068,7 @@ function exportJSON() {
   // Schema allineato al formato atteso a valle (Generatore PEI): meta/allievo/scala/
   // codici_icf/domini_icf/sintesi_automatica — vedi icf-transform.js. Diverso dal formato
   // "bozza" (getSessionData) che serve solo a salvare/ripristinare la sessione nel browser.
-  const data = buildFinalExportData({ anagrafica, profile, bItems, sItems, fpItems });
+  const data = bozzaPerFile({ anagrafica, profile, bItems, sItems, fpItems, history, importato: questionarioImportato });   // formato a valle + stato per riaprirla
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -1151,6 +1193,8 @@ async function submitPeiGeneration() {
 function resetSession() {
   if(!confirm("Avviare una nuova compilazione? I dati non salvati andranno persi.")) return;
   history=[]; profile={}; anagrafica={}; fpItems=[]; bItems=[]; sItems=[]; currentProgress=0;
+  try { localStorage.removeItem("icf_draft"); } catch (e) {}   // anche la copia automatica nel browser
+  ultimoSalvato = null; mostraAutosalvataggioVuoto();
   chatStarted=false; turno=0; lastUserText=""; validatedHash=null; validatedAt=null;
   document.getElementById("messages").innerHTML="";
   document.getElementById("quickReplies").innerHTML="";
@@ -1871,14 +1915,17 @@ function riprendiBozzaSeEsiste() {
   try {
     const data = JSON.parse(draft);
     const nome = (data.anagrafica && data.anagrafica.nome) || "sessione precedente";
-    if (!confirm("È presente una bozza salvata per " + nome + ". Desidera riprenderla?")) return false;
+    if (!confirm("È presente un lavoro salvato in questo browser per " + nome + ". Desidera riprenderlo?")) return false;
     anagrafica = data.anagrafica || {}; bItems = data.funzioniCorporee || []; sItems = data.struttureCorporee || [];
     fpItems = data.fattoriPersonali || []; profile = data.profilo || {};
     if (data._history) history = data._history;
     sanitizzaBS(); currentProgress = Object.keys(profile).length; chatStarted = true;
+    impostaModalitaImport(data.importato === true);
     updateProgress(currentProgress); updateTabBadges(); renderPanel(); updateValidStatus();
     document.getElementById("messages").innerHTML = "";
-    addMessage("ai", "Ho ripreso la bozza salvata. Possiamo continuare il colloquio.");
+    addMessage("ai", data.importato === true
+      ? "Ho ripreso il lavoro salvato nel browser: è un questionario importato da ICF Applicazioni, quindi il dialogo non serve. Lo riveda dal pannello a destra («Rivedere e convalidare il questionario»), lo convalidi e generi la bozza di PEI."
+      : "Ho ripreso il lavoro salvato nel browser. Possiamo continuare il colloquio.");
     return true;
   } catch (e) { return false; }
 }
