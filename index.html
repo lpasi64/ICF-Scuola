@@ -629,7 +629,7 @@
     <div class="export-area">
       <button class="export-btn btn-draft" onclick="saveDraft()" title="Salva subito il lavoro in questo browser (il salvataggio avviene comunque in automatico ogni pochi secondi). Non crea alcun file sul computer.">💾 Salva nel browser</button>
       <button class="export-btn btn-load" onclick="document.getElementById('loadInput').click()" title="Riapre un file salvato con «Salva JSON sul PC». Per un questionario compilato con ICF Applicazioni usi il pulsante della schermata iniziale.">📂 Carica JSON dal PC</button>
-      <button class="export-btn btn-json" onclick="exportJSON()" title="Scarica sul computer un file JSON con il questionario in corso: potrà riaprirlo più tardi con «Carica JSON dal PC»">⬇ Salva JSON sul PC</button>
+      <button class="export-btn btn-json" onclick="exportJSON()" title="Scarica sul computer un file JSON nella stessa struttura di quello di ICF Applicazioni (ICF Applicazioni lo riconosce e fa il suo controllo prima della convalida). Non contiene nome ed età dell'alunno. Per riaprirlo qui: «Carica JSON dal PC».">⬇ Salva JSON sul PC</button>
       <button class="export-btn btn-reset" onclick="resetSession()">↺ Nuovo</button>
       <div class="autosave-note" id="autosaveNote" aria-live="polite"></div>
     </div>
@@ -686,10 +686,12 @@
   </div>
 </div>
 
-<script src="icf-transform.js?v=20261013"></script>
+<script src="icf-transform.js?v=20261014"></script>
 <script src="voce.js?v=20261012"></script>
 <script src="icf-bs.js?v=20261011"></script>
-<script src="icf-import.js?v=20261013"></script>
+<script src="icf-import.js?v=20261014"></script>
+<script src="icf-modello-piattaforma.js?v=20261013"></script>
+<script src="icf-export-piattaforma.js?v=20261013"></script>
 <script>
 const PROXY_URL = "https://icf-scuola-production.up.railway.app";
 
@@ -1021,10 +1023,13 @@ function loadJSON(event) {
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const b = leggiBozza(JSON.parse(e.target.result));
+      const json = JSON.parse(e.target.result);
+      // Il file salvato con «Salva JSON sul PC» ha la struttura di ICF Applicazioni (come quello della piattaforma): si riapre con l'importazione
+      if (json && Array.isArray(json.componenti)) { avviaImport(json); return; }
+      const b = leggiBozza(json);   // file di versioni precedenti di PEI APP (bozza con lo stato interno)
       if (!b) {
-        // Non è una bozza salvata con «Salva JSON sul PC»: non si carica uno stato vuoto, si spiega dove va caricato il file
-        alert("Questo file non è stato salvato da PEI APP con «Salva JSON sul PC».\n\nSe è un questionario compilato con ICF Applicazioni, lo carichi con «Carica un questionario compilato con ICF Applicazioni» nella schermata iniziale (si apre con «Nuovo»).");
+        // Non è né un questionario né una bozza di PEI APP: non si carica uno stato vuoto
+        alert("Questo file non è un questionario nel formato di ICF Applicazioni né una bozza salvata da una versione precedente di PEI APP: controlli di aver scelto il file giusto.");
         return;
       }
       // Ripristina stato
@@ -1065,14 +1070,14 @@ function showToast(msg) {
 
 // La ripresa della bozza salvata avviene dopo il clic su «Inizia» (vedi riprendiBozzaSeEsiste)
 function exportJSON() {
-  // Schema allineato al formato atteso a valle (Generatore PEI): meta/allievo/scala/
-  // codici_icf/domini_icf/sintesi_automatica — vedi icf-transform.js. Diverso dal formato
-  // "bozza" (getSessionData) che serve solo a salvare/ripristinare la sessione nel browser.
-  const data = bozzaPerFile({ anagrafica, profile, bItems, sItems, fpItems, history, importato: questionarioImportato });   // formato a valle + stato per riaprirla
+  // Stessa struttura del file di ICF Applicazioni (questionario breve): la piattaforma lo riconosce e fa il suo controllo prima della convalida.
+  // Nel file non ci sono nome ed età dell'alunno né gli identificativi della piattaforma (vedi icf-export-piattaforma.js).
+  // Il lavoro in corso si salva comunque da solo nel browser (getSessionData, usato dal salvataggio automatico).
+  const data = ICFExportPiattaforma.esportaPerPiattaforma({ anagrafica, profile, bItems, sItems, fpItems });
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "profilo-icf-" + (anagrafica.nome||"anonimo").replace(/\s+/g,"-") + "-" + new Date().toISOString().slice(0,10) + ".json";
+  a.download = "questionario-ICF-Scuola-breve-" + (anagrafica.nome||"anonimo").replace(/[^\p{L}\p{N}-]+/gu,"-") + "-" + new Date().toISOString().slice(0,10) + ".json";
   a.click();
 }
 
@@ -1846,11 +1851,15 @@ function importaQuestionario(event) {
   reader.onload = (e) => {
     let json;
     try { json = JSON.parse(e.target.result); } catch (err) { alert("Il file non è un JSON valido: controlli di aver scelto il file giusto, esportato da ICF Applicazioni."); return; }
-    const r = ICFImport.estraiDaQuestionario(json);
-    if (!r.ok) { alert(r.errore); return; }
-    importPendente = r; mostraImport(r);
+    avviaImport(json);
   };
   reader.readAsText(file);
+}
+// Estrae i dati dal file nel formato di ICF Applicazioni e apre la finestra di importazione (nome di fantasia, nomi nelle note)
+function avviaImport(json) {
+  const r = ICFImport.estraiDaQuestionario(json);
+  if (!r.ok) { alert(r.errore); return; }
+  importPendente = r; mostraImport(r);
 }
 function mostraImport(r) {
   const p = r.report;

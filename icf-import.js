@@ -45,7 +45,7 @@ function riconosciQuestionario(json) {
   const generico = "Il file non sembra un questionario ICF-Scuola esportato da ICF Applicazioni: non ne riconosco la struttura. Controlli di aver scelto il file JSON giusto.";
   if (!json || typeof json !== "object" || Array.isArray(json)) return { ok: false, errore: generico };
   if (!Array.isArray(json.componenti)) {
-    if (json.profilo || json.funzioniCorporee || json._history) return { ok: false, errore: "Questo file è una sessione salvata da PEI APP, non un questionario di ICF Applicazioni: per riprenderla usi il pulsante «Carica» nel pannello a destra, dopo l'avvio." };
+    if (json.profilo || json.funzioniCorporee || json._history) return { ok: false, errore: "Questo file è una sessione salvata da PEI APP, non un questionario di ICF Applicazioni: per riprenderla usi il pulsante «Carica JSON dal PC» nel pannello a destra, dopo l'avvio." };
     return { ok: false, errore: generico };
   }
   if (!json.componenti.some(c => c && Array.isArray(c.domini))) return { ok: false, errore: generico };
