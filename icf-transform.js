@@ -422,6 +422,32 @@ function applicaAggiornamentoIcf(profile, u) {
   return profile;
 }
 
+// Fattori ambientali previsti dal questionario (stessi codici dell'elenco del dialogo in server.js e dell'importazione)
+const FATTORI_E_QUESTIONARIO = ["e1100", "e1101", "e115", "e120", "e125", "e130", "e150", "e165", "e310", "e315", "e320", "e325", "e330", "e340", "e350", "e355", "e410", "e540", "e555", "e575", "e580", "e585"];
+
+// Riconduce un codice a quello previsto: esatto, oppure figlio di un codice previsto (d1750 → d175); null se non previsto
+function codicePrevisto(code, previsti) {
+  const c = String(code || "").trim().toLowerCase();
+  if (previsti.includes(c)) return c;
+  const padri = previsti.filter(p => c.length > p.length && c.startsWith(p)).sort((a, b) => b.length - a.length);
+  return padri[0] || null;
+}
+
+// Il questionario prevede solo i suoi 47 item d e i suoi fattori ambientali: il resto non si registra.
+// Restituisce una copia dell'aggiornamento senza le voci non previste e l'elenco degli scartati ({ code, label }).
+function filtraIcfUpdate(u) {
+  if (!u || typeof u !== "object") return { update: u || null, scartati: [] };
+  const itemD = ICF_DOMAINS.flatMap(d => d.items.map(i => i.code));
+  const scartati = [];
+  const filtra = (lista, previsti) => (Array.isArray(lista) ? lista : []).flatMap(v => {
+    if (!v || typeof v !== "object") return [];
+    const code = codicePrevisto(v.code, previsti);
+    if (!code) { scartati.push({ code: String(v.code || "?"), label: v.label || "" }); return []; }
+    return [{ ...v, code }];
+  });
+  return { update: { ...u, items: filtra(u.items, itemD), faItems: filtra(u.faItems, FATTORI_E_QUESTIONARIO) }, scartati };
+}
+
 // Messaggio nascosto (non compare in chat) con cui si richiama l'AI agli item d ancora senza valore
 function testoRichiamoCompletezza(mancanti) {
   const elenco = (mancanti || []).map(m => `${m.code} (${m.label})`).join(", ");
@@ -443,7 +469,7 @@ const ICFTransform = {
   ICF_DOMAINS, DOMINI_TITOLI, ITEM_DESCRIZIONI, ITEM_DIMENSIONE_PEI, DIMENSIONE_LABELS, SCALA,
   totalItemCount, buildCodiciIcf, buildDominiIcf, buildSintesiAutomatica, countCompletion,
   getMissingItems, getMissingByDomain, buildFinalExportData, bozzaPerFile, leggiBozza,
-  labelForCode, dominioDelCodice, applicaAggiornamentoIcf, riepilogaAggiornamento, marcaEvidenza, impronta, qualificatoreFattore, normalizzaFattoriProfilo,
+  labelForCode, dominioDelCodice, applicaAggiornamentoIcf, filtraIcfUpdate, codicePrevisto, FATTORI_E_QUESTIONARIO, riepilogaAggiornamento, marcaEvidenza, impronta, qualificatoreFattore, normalizzaFattoriProfilo,
   sembraChiusura, testoRichiamoCompletezza, MESSAGGIO_QUESTIONARIO_COMPLETO, convalidaPossibile
 };
 
