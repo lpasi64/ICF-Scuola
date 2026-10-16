@@ -686,7 +686,7 @@
   </div>
 </div>
 
-<script src="icf-transform.js?v=20261017"></script>
+<script src="icf-transform.js?v=20261018"></script>
 <script src="voce.js?v=20261012"></script>
 <script src="icf-bs.js?v=20261011"></script>
 <script src="icf-import.js?v=20261014"></script>
@@ -791,6 +791,8 @@ function applyUpdate(r) {
   const scartati = [];
   if (r.bItems) { const n = ICFBS.normalizzaVoci(r.bItems, "b"); r.bItems = n.voci; scartati.push(...n.scartati); }
   if (r.sItems) { const n = ICFBS.normalizzaVoci(r.sItems, "s"); r.sItems = n.voci; scartati.push(...n.scartati); }
+  // item d e fattori ambientali: solo quelli previsti dal questionario
+  if (r.icfUpdate) { const f = ICFTransform.filtraIcfUpdate(r.icfUpdate); r.icfUpdate = f.update; scartati.push(...f.scartati); }
   marcaEvidenza(r, lastUserText, turno);   // ogni dato registrato porta la frase da cui nasce
   // Anagrafica
   if(r.anagrafica) {
@@ -1244,7 +1246,7 @@ async function sendMessage() {
     }
     addMessage("ai", r.message, r.hint);
     if (regTot.length) addEvidenza(regTot, text);
-    if (scartTot.length) addMessage("system", "Non ho registrato queste voci, perché le funzioni e le strutture corporee del questionario sono solo quelle previste dagli allegati: " + scartTot.map(x => esc(x.code) + (x.label ? " (" + esc(x.label) + ")" : "")).join(", ") + ".");
+    if (scartTot.length) addMessage("system", "Non ho registrato queste voci, perché il questionario prevede solo i suoi item, le funzioni e strutture corporee degli allegati e i suoi fattori ambientali: " + scartTot.map(x => esc(x.code) + (x.label ? " (" + esc(x.label) + ")" : "")).join(", ") + ".");
     if (chiusuraResidua && mancanti.length) mostraMancanti(); else if (r.quickReplies.length) setQR(r.quickReplies);
     if (typeof r.progress === "number") updateProgress(r.progress);
     speak(r.message, startMicAfterTTS);
