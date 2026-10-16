@@ -391,16 +391,43 @@ function impronta({ anagrafica = {}, profile = {}, bItems = [], sItems = [], fpI
 // ── Chiusura del colloquio ────────────────────────────────────────────────────
 // Il colloquio non si chiude da solo e l'AI non scrive messaggi di chiusura: le fasi successive (revisione, convalida, generazione
 // del PEI) sono dell'interfaccia. Riconosce un messaggio di chiusura dell'AI (stesura, consegna di documenti, contatti futuri, saluti finali).
-const RX_CHIUSURA = /stesura|bozza completa|predisporre la bozza|procedo con|documenti definitivi|consegn|contattarla|contattare|completato (?:tutto )?il questionario|abbiamo (?:davvero )?completato|tutti gli item|concludere il colloquio|chiudere il colloquio|concludiamo|arrivederci|a presto|buon lavoro/i;
+const RX_CHIUSURA = /stesura|bozza completa|predisporre la bozza|procedo con|documenti definitivi|consegn|contattarla|contattare|completato (?:tutto )?il questionario|abbiamo (?:davvero )?completato|tutti gli item|concludere il colloquio|chiudere il colloquio|concludiamo|arrivederci|a presto|buon lavoro|abbiamo raccolto|abbiamo (?:tutti gli elementi|concluso|terminato)|raccolta dei dati|elementi necessari|tempo dedicato/i;
 function sembraChiusura(testo) {
   return RX_CHIUSURA.test(String(testo || ""));
+}
+
+// Ogni item d appartiene a UN SOLO dominio. I modelli (Mistral in particolare) a volte mettono più item sotto un solo domainId:
+// l'item si registra comunque nel dominio giusto, deducendolo dal codice; i fattori ambientali restano nel dominio indicato.
+function dominioDelCodice(code) {
+  const d = ICF_DOMAINS.find(dom => dom.items.some(i => i.code === code));
+  return d ? d.id : null;
+}
+function applicaAggiornamentoIcf(profile, u) {
+  if (!u || typeof u !== "object") return profile;
+  const dominio = (id) => { if (!profile[id]) profile[id] = { items: [], faItems: [] }; return profile[id]; };
+  if (u.domainId) dominio(u.domainId);
+  (u.items || []).forEach(item => {
+    if (!item) return;
+    const id = dominioDelCodice(item.code) || u.domainId;
+    if (!id) return;
+    const lista = dominio(id).items; const i = lista.findIndex(x => x.code === item.code);
+    if (i >= 0) lista[i] = item; else lista.push(item);
+  });
+  (u.faItems || []).forEach(fa => {
+    if (!fa || !u.domainId) return;
+    const lista = dominio(u.domainId).faItems; const i = lista.findIndex(x => x.code === fa.code);
+    if (i >= 0) lista[i] = fa; else lista.push(fa);
+  });
+  normalizzaFattoriProfilo(profile);   // effetti sempre sulla scala della piattaforma (F++, F-, B-, B+, B++)
+  return profile;
 }
 
 // Messaggio nascosto (non compare in chat) con cui si richiama l'AI agli item d ancora senza valore
 function testoRichiamoCompletezza(mancanti) {
   const elenco = (mancanti || []).map(m => `${m.code} (${m.label})`).join(", ");
   return `Controllo di completezza: non hai ancora un valore di PF e CAP per questi item: ${elenco}. Non concludere il colloquio e non scrivere alcun messaggio di chiusura. `
-    + `Per gli item non pertinenti al caso assegna 9 (non applicabile) con una nota breve, senza chiedere; per tutti gli altri fai ora una domanda esplicita e concreta all'interlocutore, un gruppo di item per volta.`;
+    + `Per gli item non pertinenti al caso assegna 9 (non applicabile) con una nota breve, senza chiedere; per tutti gli altri fai ora una domanda esplicita e concreta all'interlocutore, un gruppo di item per volta. `
+    + `Nei messaggi all'interlocutore non citare mai i codici ICF (d…) né annunciare aggiornamenti interni: usa parole semplici, al massimo due o tre item per domanda; i valori assegnati vanno nel JSON (icfUpdate), non nel testo.`;
 }
 
 // La convalida del questionario è possibile solo se ogni item d ha un valore (9 = non pertinente al caso conta come valore)
@@ -416,7 +443,7 @@ const ICFTransform = {
   ICF_DOMAINS, DOMINI_TITOLI, ITEM_DESCRIZIONI, ITEM_DIMENSIONE_PEI, DIMENSIONE_LABELS, SCALA,
   totalItemCount, buildCodiciIcf, buildDominiIcf, buildSintesiAutomatica, countCompletion,
   getMissingItems, getMissingByDomain, buildFinalExportData, bozzaPerFile, leggiBozza,
-  labelForCode, riepilogaAggiornamento, marcaEvidenza, impronta, qualificatoreFattore, normalizzaFattoriProfilo,
+  labelForCode, dominioDelCodice, applicaAggiornamentoIcf, riepilogaAggiornamento, marcaEvidenza, impronta, qualificatoreFattore, normalizzaFattoriProfilo,
   sembraChiusura, testoRichiamoCompletezza, MESSAGGIO_QUESTIONARIO_COMPLETO, convalidaPossibile
 };
 
