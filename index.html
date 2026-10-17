@@ -703,6 +703,7 @@ const { ICF_DOMAINS, countCompletion, getMissingByDomain, buildFinalExportData, 
 // System prompt gestito lato server
 
 let history = [], profile = {}, anagrafica = {}, fpItems = [], bItems = [], sItems = [], currentTab = "ana", currentProgress = 0;
+const struttureSegnalate = new Set();   // le strutture non sostenute dalla diagnosi si segnalano una volta sola (il modello le ripropone a ogni risposta)
 
 async function callProxy(userMessage) {
   history.push({ role:"user", content:userMessage });
@@ -1198,7 +1199,7 @@ async function submitPeiGeneration() {
 
 function resetSession() {
   if(!confirm("Avviare una nuova compilazione? I dati non salvati andranno persi.")) return;
-  history=[]; profile={}; anagrafica={}; fpItems=[]; bItems=[]; sItems=[]; currentProgress=0;
+  history=[]; profile={}; anagrafica={}; fpItems=[]; bItems=[]; sItems=[]; currentProgress=0; struttureSegnalate.clear();
   try { localStorage.removeItem("icf_draft"); } catch (e) {}   // anche la copia automatica nel browser
   ultimoSalvato = null; mostraAutosalvataggioVuoto();
   chatStarted=false; turno=0; lastUserText=""; validatedHash=null; validatedAt=null;
@@ -1233,7 +1234,7 @@ async function sendMessage() {
     let r = await callProxy(text);
     const regTot = [], scartTot = [];
     const nonSostTot = [];
-    const registra = (x) => { const g = applyUpdate(x); regTot.push(...g); scartTot.push(...(g.scartati || [])); nonSostTot.push(...(g.nonSostenute || [])); };
+    const registra = (x) => { const g = applyUpdate(x); regTot.push(...g); scartTot.push(...(g.scartati || [])); nonSostTot.push(...(g.nonSostenute || []).filter(x => { if (struttureSegnalate.has(x.code)) return false; struttureSegnalate.add(x.code); return true; })); };
     registra(r);
     // se l'AI tenta di chiudere con item d ancora senza valore, un messaggio nascosto la riporta alle domande (al massimo due volte)
     let tentativi = 0;
