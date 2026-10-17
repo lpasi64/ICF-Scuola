@@ -448,6 +448,21 @@ function filtraIcfUpdate(u) {
   return { update: { ...u, items: filtra(u.items, itemD), faItems: filtra(u.faItems, FATTORI_E_QUESTIONARIO) }, scartati };
 }
 
+// Fattori personali (serie i): non hanno un elenco chiuso, ma una nota che è un segnaposto («non specificato») o un'ipotesi
+// («potrebbe avere…») non è un dato riferito dall'interlocutore e non si registra. Restituisce le voci tenute e gli scartati ({ code, label, motivo }).
+const RX_FP_SEGNAPOSTO = /non specificat|non riferit|nessun\w*\b[^.;]{0,40}\briferit|non noto|non nota|sconosciut|non emers|da definire|\bn\.?\s?d\.?\b|non disponibil/i;
+const RX_FP_IPOTESI = /\bpotrebb|\bprobabilment|\bpresumibilment|\bforse\b|\bverosimilment|\bsembr|\bpare che\b|\bipotizz|è possibile che|\bsarebbe\b|\bpotenzialment/i;
+function filtraFattoriPersonali(lista) {
+  const voci = [], scartati = [];
+  for (const f of Array.isArray(lista) ? lista : []) {
+    if (!f || typeof f !== "object") continue;
+    const nota = String(f.note || f.nota || "");
+    const motivo = RX_FP_SEGNAPOSTO.test(nota) ? "dato non riferito (segnaposto)" : RX_FP_IPOTESI.test(nota) ? "ipotesi, non un dato riferito" : "";
+    if (motivo) scartati.push({ code: String(f.code || "?"), label: f.label || "", motivo }); else voci.push(f);
+  }
+  return { voci, scartati };
+}
+
 // Messaggio nascosto (non compare in chat) con cui si richiama l'AI agli item d ancora senza valore
 function testoRichiamoCompletezza(mancanti) {
   const elenco = (mancanti || []).map(m => `${m.code} (${m.label})`).join(", ");
@@ -469,7 +484,7 @@ const ICFTransform = {
   ICF_DOMAINS, DOMINI_TITOLI, ITEM_DESCRIZIONI, ITEM_DIMENSIONE_PEI, DIMENSIONE_LABELS, SCALA,
   totalItemCount, buildCodiciIcf, buildDominiIcf, buildSintesiAutomatica, countCompletion,
   getMissingItems, getMissingByDomain, buildFinalExportData, bozzaPerFile, leggiBozza,
-  labelForCode, dominioDelCodice, applicaAggiornamentoIcf, filtraIcfUpdate, codicePrevisto, FATTORI_E_QUESTIONARIO, riepilogaAggiornamento, marcaEvidenza, impronta, qualificatoreFattore, normalizzaFattoriProfilo,
+  labelForCode, dominioDelCodice, applicaAggiornamentoIcf, filtraIcfUpdate, filtraFattoriPersonali, codicePrevisto, FATTORI_E_QUESTIONARIO, riepilogaAggiornamento, marcaEvidenza, impronta, qualificatoreFattore, normalizzaFattoriProfilo,
   sembraChiusura, testoRichiamoCompletezza, MESSAGGIO_QUESTIONARIO_COMPLETO, convalidaPossibile
 };
 

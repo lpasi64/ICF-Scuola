@@ -790,11 +790,13 @@ function updateTabBadges() {
 }
 function applyUpdate(r) {
   // funzioni e strutture corporee: solo gli item previsti dagli allegati del questionario (gli altri non si registrano)
-  const scartati = [];
+  const scartati = [], fpScartati = [];
   if (r.bItems) { const n = ICFBS.normalizzaVoci(r.bItems, "b"); r.bItems = n.voci; scartati.push(...n.scartati); }
   if (r.sItems) { const n = ICFBS.normalizzaVoci(r.sItems, "s"); r.sItems = n.voci; scartati.push(...n.scartati); }
   // item d e fattori ambientali: solo quelli previsti dal questionario
   if (r.icfUpdate) { const f = ICFTransform.filtraIcfUpdate(r.icfUpdate); r.icfUpdate = f.update; scartati.push(...f.scartati); }
+  // fattori personali: via segnaposto e ipotesi (non sono dati riferiti)
+  if (r.fpItems && r.fpItems.length) { const f = ICFTransform.filtraFattoriPersonali(r.fpItems); r.fpItems = f.voci; fpScartati.push(...f.scartati); }
   marcaEvidenza(r, lastUserText, turno);   // ogni dato registrato porta la frase da cui nasce
   // Anagrafica
   if(r.anagrafica) {
@@ -847,6 +849,7 @@ function applyUpdate(r) {
   reg.scartati = scartati;
   reg.push(...dg.registro);
   reg.nonSostenute = dg.nonSostenute;
+  reg.fpScartati = fpScartati;
   return reg;
 }
 // Etichette anagrafica
@@ -1233,8 +1236,8 @@ async function sendMessage() {
   try {
     let r = await callProxy(text);
     const regTot = [], scartTot = [];
-    const nonSostTot = [];
-    const registra = (x) => { const g = applyUpdate(x); regTot.push(...g); scartTot.push(...(g.scartati || [])); nonSostTot.push(...(g.nonSostenute || []).filter(x => { if (struttureSegnalate.has(x.code)) return false; struttureSegnalate.add(x.code); return true; })); };
+    const nonSostTot = [], fpScartTot = [];
+    const registra = (x) => { const g = applyUpdate(x); regTot.push(...g); scartTot.push(...(g.scartati || [])); fpScartTot.push(...(g.fpScartati || []).filter(x => { const k = x.code + "|" + x.motivo; if (struttureSegnalate.has(k)) return false; struttureSegnalate.add(k); return true; })); nonSostTot.push(...(g.nonSostenute || []).filter(x => { if (struttureSegnalate.has(x.code)) return false; struttureSegnalate.add(x.code); return true; })); };
     registra(r);
     // se l'AI tenta di chiudere con item d ancora senza valore, un messaggio nascosto la riporta alle domande (al massimo due volte)
     let tentativi = 0;
@@ -1253,6 +1256,7 @@ async function sendMessage() {
     }
     addMessage("ai", r.message, r.hint);
     if (regTot.length) addEvidenza(regTot, text);
+    if (fpScartTot.length) addMessage("system", "Non ho registrato questi fattori personali, perché non sono dati riferiti da Lei (ipotesi o dato non specificato): " + fpScartTot.map(x => esc(x.code) + (x.label ? " (" + esc(x.label) + ")" : "")).join(", ") + ". Se sono corretti, li aggiunga Lei nella revisione.");
     if (nonSostTot.length) addMessage("system", "Non ho registrato queste strutture corporee, perché non risultano dalla diagnosi dichiarata né da una lesione o malformazione riferita: " + nonSostTot.map(x => esc(x.code) + (x.label ? " (" + esc(x.label) + ")" : "")).join(", ") + ".");
     if (scartTot.length) addMessage("system", "Non ho registrato queste voci, perché il questionario prevede solo i suoi item, le funzioni e strutture corporee degli allegati e i suoi fattori ambientali: " + scartTot.map(x => esc(x.code) + (x.label ? " (" + esc(x.label) + ")" : "")).join(", ") + ".");
     if (chiusuraResidua && mancanti.length) mostraMancanti(); else if (r.quickReplies.length) setQR(r.quickReplies);
