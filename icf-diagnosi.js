@@ -44,7 +44,7 @@ const REGOLE = [
 ];
 
 // Condizione indicata come passata o superata: non determina il funzionamento attuale
-const RX_PASSATA = /pregress|in passato|da piccol|da bambin|risolt|superat|remot|guarit/i;
+const RX_PASSATA = /pregress|in passato|da piccol|da bambin|risolt|superat|remot|guarit|prescolar|primi anni|nell[’']infanzia|in età evolutiva remota/i;
 const RX_GRAVITA = [[/profond|complet/i, 4], [/grave|gravi|severo|severa|importante/i, 3], [/moderat|medio|media|medi[ao]-/i, 2], [/lieve|lievi|leggero|leggera/i, 1]];
 const RX_ARTO_SUP = /arto superiore|braccio|bracci|mano\b|mani\b/i, RX_ARTO_INF = /arto inferiore|gamba|gambe|piede|piedi/i, RX_TRONCO = /\btronco\b/i;
 
