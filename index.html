@@ -689,6 +689,7 @@
 <script src="icf-transform.js?v=20261018"></script>
 <script src="voce.js?v=20261012"></script>
 <script src="icf-bs.js?v=20261011"></script>
+<script src="icf-diagnosi.js?v=20261019"></script>
 <script src="icf-import.js?v=20261014"></script>
 <script src="icf-modello-piattaforma.js?v=20261013"></script>
 <script src="icf-export-piattaforma.js?v=20261013"></script>
@@ -823,6 +824,8 @@ function applyUpdate(r) {
       if(i>=0) sItems[i]=s; else sItems.push(s);
     });
   }
+  // funzioni e strutture che discendono dalla diagnosi dichiarata (tabella nel codice); strutture non sostenute dalla diagnosi: non si registrano
+  const dg = ICFDiagnosi.integraDiagnosi({ anagrafica, bItems, sItems }, { turno });
   // ICF domini
   // ogni item d si registra nel proprio dominio (dal codice), anche se il modello lo ha messo sotto un altro domainId
   ICFTransform.applicaAggiornamentoIcf(profile, r.icfUpdate);
@@ -841,6 +844,8 @@ function applyUpdate(r) {
   updateValidStatus();
   const reg = riepilogaAggiornamento(r);
   reg.scartati = scartati;
+  reg.push(...dg.registro);
+  reg.nonSostenute = dg.nonSostenute;
   return reg;
 }
 // Etichette anagrafica
@@ -1227,7 +1232,8 @@ async function sendMessage() {
   try {
     let r = await callProxy(text);
     const regTot = [], scartTot = [];
-    const registra = (x) => { const g = applyUpdate(x); regTot.push(...g); scartTot.push(...(g.scartati || [])); };
+    const nonSostTot = [];
+    const registra = (x) => { const g = applyUpdate(x); regTot.push(...g); scartTot.push(...(g.scartati || [])); nonSostTot.push(...(g.nonSostenute || [])); };
     registra(r);
     // se l'AI tenta di chiudere con item d ancora senza valore, un messaggio nascosto la riporta alle domande (al massimo due volte)
     let tentativi = 0;
@@ -1246,6 +1252,7 @@ async function sendMessage() {
     }
     addMessage("ai", r.message, r.hint);
     if (regTot.length) addEvidenza(regTot, text);
+    if (nonSostTot.length) addMessage("system", "Non ho registrato queste strutture corporee, perché non risultano dalla diagnosi dichiarata né da una lesione o malformazione riferita: " + nonSostTot.map(x => esc(x.code) + (x.label ? " (" + esc(x.label) + ")" : "")).join(", ") + ".");
     if (scartTot.length) addMessage("system", "Non ho registrato queste voci, perché il questionario prevede solo i suoi item, le funzioni e strutture corporee degli allegati e i suoi fattori ambientali: " + scartTot.map(x => esc(x.code) + (x.label ? " (" + esc(x.label) + ")" : "")).join(", ") + ".");
     if (chiusuraResidua && mancanti.length) mostraMancanti(); else if (r.quickReplies.length) setQR(r.quickReplies);
     if (typeof r.progress === "number") updateProgress(r.progress);
